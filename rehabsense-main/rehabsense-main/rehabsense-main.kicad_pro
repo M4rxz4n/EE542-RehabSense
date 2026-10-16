@@ -648,7 +648,7 @@
         "uuid": "b751250a-7d43-475a-8447-686d399cd67b"
       }
     ],
-    "used_designators": "U1-3,#PWR1-4,C1-2,R1",
+    "used_designators": "U1-7,#PWR1-26,C1-18,R1-16,JP1-2",
     "variants": []
   },
   "sheets": [
@@ -661,6 +661,10 @@
       "power"
     ],
     [
+      "4c292b8e-bacf-4862-ad93-06ae5fddd327",
+      "mcu"
+    ],
+    [
       "87cebee4-4100-4548-8c27-9780f68913c3",
       "imu"
     ],
@@ -669,8 +673,8 @@
       "haptic"
     ],
     [
-      "4c292b8e-bacf-4862-ad93-06ae5fddd327",
-      "mcu"
+      "850bf0bc-2a4d-454f-b100-f2902529ee73",
+      "emg"
     ]
   ],
   "text_variables": {},
