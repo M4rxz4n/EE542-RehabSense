@@ -1003,6 +1003,30 @@
 		)
 		(uuid "d7360757-2942-492a-b87c-587b4e60c071")
 	)
+	(global_label "ADC1"
+		(shape input)
+		(at 151.13 80.01 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "75cfe9ab-fab3-4972-9f6d-b37e5ee62c53")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 158.9533 80.01 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+	)
 	(symbol
 		(lib_id "power:GND")
 		(at 144.78 91.44 0)
