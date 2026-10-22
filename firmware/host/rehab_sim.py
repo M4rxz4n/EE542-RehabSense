@@ -1,0 +1,807 @@
+"""
+rehab_sim.py — a simulated RehabSense device.
+
+The host client has to be finished before the board is, and after it is built
+there is still no way to rehearse a dropped link, a fatiguing set or a staged
+compensation on demand. This is a device-shaped thing on the other end of a
+loopback that speaks the real wire format: the same 14-byte header, the same
+four frame types, the same control opcodes, the same 180-byte budget, the same
+hold-gated repetition cycle from rep_cycle.h, and grading.c's scoring through
+rehab_grading.
+
+    python3 rehab_client.py --sim --duration 60
+
+What it is faithful about: the protocol, the state machine, the event
+vocabulary, the frame rates and the byte budgets.
+
+What it is not: a model of an arm, of electrode physics, or of BLE timing. The
+numbers are plausible, not measured. Do not tune thresholds against it — tune
+them against recorded volunteer data. Its job is to prove the host works and to
+keep both sides honest about the contract.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import math
+import random
+import struct
+import time
+from dataclasses import dataclass, field
+
+import rehab_protocol as p
+from rehab_grading import Accumulator, DEFAULT_WEIGHTS, RepResult, haptic_for
+
+# ── rehab_config.h ─────────────────────────────────────────────────────
+TICK_HZ = p.FEATURE_RATE_HZ              # 50 Hz analysis tick
+TICK_MS = 1000 // TICK_HZ                # 20 ms
+EMG_PER_TICK = p.EMG_SAMPLE_RATE_HZ // TICK_HZ      # 40 — one frame per tick
+IMU_PER_TICK = p.IMU_SAMPLE_RATE_HZ // TICK_HZ      # 2
+
+REP_EXTENDED_BAND_FRAC = 0.10
+REP_FLEXED_BAND_FRAC = 0.85
+REP_HOLD_MS = 1000
+REP_PHASE_TIMEOUT_MS = 10000
+REP_HOLD_MAX_VEL_DPS = 15.0
+START_POS_UPPER_ARM_TOL_DEG = 15.0
+
+COMP_SHOULDER_HIKE_DEG = 15.0
+COMP_TRUNK_LEAN_DEG = 10.0
+COMP_ARM_SWING_DPS = 30.0
+COMP_ARM_SWING_SUSTAIN_MS = 200
+COMP_CONFIRM_MS = 30
+
+FATIGUE_MDF_SLOPE_THRESH = -0.5          # Hz per repetition
+FATIGUE_CONSEC_REPS = 3
+MDF_MIN_ACTIVATION = 0.15
+
+CALIB_REST_MS = 10000
+CALIB_MVC_HOLD_MS = 5000
+CALIB_MVC_ATTEMPTS = 3
+CALIB_NEUTRAL_MS = 5000
+
+
+# ── Scenario ───────────────────────────────────────────────────────────
+
+
+@dataclass
+class RepPlan:
+    """One repetition the simulated patient attempts."""
+
+    peak_deg: float = 94.0
+    rise_s: float = 1.6
+    fall_s: float = 1.7
+    bottom_hold_s: float = 1.3          # must clear REP_HOLD_MS to arm
+    top_hold_s: float = 1.3             # must clear REP_HOLD_MS to count
+    tremor_deg: float = 0.5             # wobble during the holds
+    jerkiness: float = 0.0              # extra velocity reversals on the way
+    activation: float = 0.55            # agonist %MVC at peak effort
+    cocontraction: float = 0.12
+    shoulder_deg: float = 4.0
+    trunk_deg: float = 2.0
+    swing: bool = False
+    bad_start: bool = False             # upper arm outside the start tolerance
+    abandon: bool = False               # stalls mid-range past the timeout
+    label: str = ""
+
+
+@dataclass
+class Profile:
+    seed: int = 7
+    speed: float = 1.0                  # wall-clock multiplier
+    angle_min: float = 8.0              # from the patient's own ROM sweep
+    angle_max: float = 100.0
+    mvc_unreliable: bool = False
+    mdf_baseline: float = 96.0
+    mdf_fall_per_rep: float = 0.9
+    fatigue_onset_rep: int = 6
+    battery_start_pct: int = 92
+    rest_envelope: float = 0.03         # %MVC at rest
+    plans: list[RepPlan] = field(default_factory=list)
+
+
+def demo_scenario() -> Profile:
+    """Clean repetitions, then the behaviours worth demonstrating: a staged
+    shoulder hike, an arm swung rather than curled, a bad start posture, a
+    repetition abandoned mid-range, heavy co-contraction, and a fatiguing
+    run-out."""
+    plans = [
+        RepPlan(label="clean"),
+        RepPlan(peak_deg=97.0, label="clean"),
+        RepPlan(peak_deg=92.0, shoulder_deg=24.0, label="shoulder hike"),
+        RepPlan(peak_deg=95.0, activation=0.07, swing=True,
+                label="swung, not curled"),
+        RepPlan(peak_deg=93.0, bad_start=True, label="bad start posture"),
+        RepPlan(peak_deg=60.0, abandon=True, label="abandoned mid-range"),
+        RepPlan(peak_deg=94.0, cocontraction=0.55, label="co-contraction"),
+        RepPlan(peak_deg=96.0, trunk_deg=16.0, label="trunk lean"),
+    ]
+    for i in range(10):
+        plans.append(RepPlan(peak_deg=max(84.0, 96.0 - 1.4 * i),
+                             rise_s=1.6 + 0.09 * i, fall_s=1.7 + 0.1 * i,
+                             tremor_deg=0.5 + 0.08 * i,
+                             jerkiness=0.6 if i > 5 else 0.0,
+                             activation=max(0.22, 0.55 - 0.025 * i),
+                             cocontraction=0.12 + 0.02 * i,
+                             shoulder_deg=4.0 + 1.3 * i,
+                             label="fatiguing"))
+    return Profile(plans=plans)
+
+
+# ── Synthetic EMG ──────────────────────────────────────────────────────
+
+
+class _Biquad:
+    """RBJ band-pass. Gives the synthetic EMG a centre frequency that can be
+    made to fall with fatigue, which is what makes the raw stream worth
+    streaming at all."""
+
+    def __init__(self, fs: float, f0: float, q: float = 0.7) -> None:
+        self.fs = fs
+        self._z1 = self._z2 = 0.0
+        self.retune(f0, q)
+
+    def retune(self, f0: float, q: float = 0.7) -> None:
+        w0 = 2 * math.pi * max(5.0, min(self.fs / 2 - 10, f0)) / self.fs
+        alpha = math.sin(w0) / (2 * q)
+        a0 = 1 + alpha
+        self.b0, self.b1, self.b2 = alpha / a0, 0.0, -alpha / a0
+        self.a1, self.a2 = (-2 * math.cos(w0)) / a0, (1 - alpha) / a0
+
+    def step(self, x: float) -> float:
+        y = self.b0 * x + self._z1
+        self._z1 = self.b1 * x - self.a1 * y + self._z2
+        self._z2 = self.b2 * x - self.a2 * y
+        return y
+
+
+def _min_jerk(f: float) -> float:
+    f = max(0.0, min(1.0, f))
+    return 10 * f ** 3 - 15 * f ** 4 + 6 * f ** 5
+
+
+# ── Loopback transport ─────────────────────────────────────────────────
+
+
+class LoopbackClient:
+    """The subset of the BleakClient surface rehab_client uses, wired to a
+    SimulatedDevice instead of a radio. Notifications are delivered through
+    call_soon so they land on the event loop the way a real one does, rather
+    than inside the device's own call stack."""
+
+    def __init__(self, device: "SimulatedDevice") -> None:
+        self._dev = device
+        self._subs: dict[str, object] = {}
+        self.is_connected = True
+        self.mtu_size = 185              # what CoreBluetooth would give
+        #: Set while a dropout is being simulated.
+        self.link_down = False
+        self.dropped = 0
+        device.attach(self)
+
+    async def __aenter__(self) -> "LoopbackClient":
+        return self
+
+    async def __aexit__(self, *exc) -> None:
+        self.is_connected = False
+
+    async def connect(self) -> None:
+        self.is_connected = True
+
+    async def disconnect(self) -> None:
+        self.is_connected = False
+
+    async def start_notify(self, uuid: str, cb) -> None:
+        self._subs[uuid] = cb
+
+    async def stop_notify(self, uuid: str) -> None:
+        self._subs.pop(uuid, None)
+
+    async def write_gatt_char(self, uuid: str, data: bytes,
+                              response: bool = False) -> None:
+        if self.link_down:
+            raise RuntimeError("link down")
+        if uuid == p.UUID_CONTROL:
+            self._dev.on_command(data[0], data[1:])
+        elif uuid == p.UUID_CALIB:
+            self._dev.on_calib_write(bytes(data))
+
+    async def read_gatt_char(self, uuid: str) -> bytes:
+        if uuid == p.UUID_STATUS:
+            return self._dev.status_bytes()
+        if uuid == p.UUID_CALIB:
+            return self._dev.calib.pack()
+        raise RuntimeError(f"cannot read {uuid}")
+
+    def notify(self, uuid: str, data: bytes) -> None:
+        """Called by the device to push one notification."""
+        if self.link_down or not self.is_connected:
+            self.dropped += 1
+            return
+        cb = self._subs.get(uuid)
+        if cb is None:
+            return
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return
+        loop.call_soon(cb, uuid, bytearray(data))
+
+
+# ── The device ─────────────────────────────────────────────────────────
+
+
+class SimulatedDevice:
+    def __init__(self, profile: Profile | None = None) -> None:
+        self.profile = profile or demo_scenario()
+        self.rng = random.Random(self.profile.seed)
+        self.client: LoopbackClient | None = None
+
+        self.calib = p.CalibRecord(
+            version=p.CALIB_RECORD_VERSION, timestamp=int(time.time()),
+            emg_rest_rms=(0.004, 0.004), emg_mvc=(1.0, 1.0),
+            mdf_baseline=(self.profile.mdf_baseline, self.profile.mdf_baseline),
+            angle_min=self.profile.angle_min, angle_max=self.profile.angle_max,
+            flags=p.CALIB_FLAG_MVC_UNRELIABLE if self.profile.mvc_unreliable else 0)
+
+        self.fw_state = p.FwState.STANDBY
+        self.fault = p.Fault.NONE
+        self.t_us = 0
+        self.running = False
+        self.host_time_offset_us = 0
+
+        self.rep_state = p.RepState.WAIT_START
+        self.rep_count = 0
+        self.total_reps = 0
+        self._hold_ms = 0
+        self._phase_ms = 0
+        self._acc: Accumulator | None = None
+        self._comp_latched = 0
+        self._comp_confirm = {p.COMP_SHOULDER: 0, p.COMP_TRUNK: 0, p.COMP_SWING: 0}
+        self._swing_ms = 0
+        self._start_pos_ok: bool | None = None
+
+        self.angle = self.profile.angle_min + 2.0
+        self.velocity = 0.0
+        self.envelope = [self.profile.rest_envelope] * p.EMG_CHANNELS
+        self.mdf = [0.0] * p.EMG_CHANNELS
+        self.upper_arm_dev = 0.0
+        self.trunk_dev = 0.0
+        self.sig_flags = (p.SIG_MVC_UNRELIABLE if self.profile.mvc_unreliable else 0)
+        self.battery_pct = float(self.profile.battery_start_pct)
+        self.clip_count = [0, 0]
+
+        self._plan_i = 0
+        self._plan: RepPlan | None = None
+        self._traj: list[tuple[float, float, float]] = []
+        self._traj_i = 0
+
+        self._emg_seq = 0
+        self._imu_seq = 0
+        self._feat_seq = 0
+        self._imu_pending: list = []
+        #: EMG frames kept for backfill, keyed by sequence. Tier 2 in the
+        #: firmware; a dict here.
+        self._store: dict[int, bytes] = {}
+        self._acked_seq = 0
+        self.gap_occurred = False
+
+        self._bp = [_Biquad(p.EMG_SAMPLE_RATE_HZ, self.profile.mdf_baseline)
+                    for _ in range(p.EMG_CHANNELS)]
+        self._mdf_history: list[tuple[int, float]] = []
+        self._fatigue_streak = 0
+        self.fatigue_flagged = False
+
+        #: Everything the actuator was asked to do, for the bench checks.
+        self.haptic_log: list[tuple[int, int]] = []
+        self.results: list[RepResult] = []
+        self._calib_task: asyncio.Task | None = None
+
+    # ── plumbing ──────────────────────────────────────────────────────
+
+    def attach(self, client: LoopbackClient) -> None:
+        self.client = client
+
+    def _notify(self, uuid: str, data: bytes) -> None:
+        if self.client is not None:
+            self.client.notify(uuid, data)
+
+    def _event(self, event: int, payload: bytes = b"") -> None:
+        self._notify(p.UUID_EVENTS, p.build_event(self.t_us, event, payload))
+
+    def _haptic(self, pattern: int) -> None:
+        """The haptic branch does not depend on BLE: a dropped link must not
+        change anything about the exercise."""
+        self.haptic_log.append((self.t_us, int(pattern)))
+
+    def status_bytes(self) -> bytes:
+        flags = p.STATUS_FLAG_PSRAM_BACKED
+        if self.gap_occurred:
+            flags |= p.STATUS_FLAG_GAP_OCCURRED
+        return p.build_status(
+            fw_state=int(self.fw_state), fault_code=int(self.fault),
+            battery_pct=int(self.battery_pct),
+            battery_mv=int(3300 + 9 * self.battery_pct),
+            signal_quality=(self.sig_flags & 1, (self.sig_flags >> 1) & 1),
+            seq_oldest=self._acked_seq,
+            seq_newest=self._emg_seq, clip_count=tuple(self.clip_count),
+            flags=flags, rep_count=self.rep_count,
+            host_time_offset_us=self.host_time_offset_us)
+
+    # ── commands ──────────────────────────────────────────────────────
+
+    def on_command(self, op: int, payload: bytes) -> None:
+        if op == p.Cmd.START_SESSION:
+            self.begin_set()
+        elif op == p.Cmd.STOP_SESSION:
+            self.end_set()
+        elif op == p.Cmd.START_CALIBRATION:
+            phase = payload[0] if payload else 0
+            self._calib_task = asyncio.ensure_future(self._run_calibration(phase))
+        elif op == p.Cmd.ABORT_CALIBRATION:
+            if self._calib_task and not self._calib_task.done():
+                self._calib_task.cancel()
+            self._set_state(p.FwState.STANDBY)
+        elif op == p.Cmd.REQUEST_RECALIBRATION:
+            self._calib_task = asyncio.ensure_future(
+                self._run_calibration(int(p.CalibPhase.NEUTRAL)))
+        elif op == p.Cmd.ACK_SEQ:
+            if len(payload) >= 4:
+                seq = struct.unpack("<I", payload[:4])[0]
+                self._acked_seq = max(self._acked_seq, seq)
+                # Release tier-2 storage below the mark, as the firmware does.
+                for s in [k for k in self._store if k < self._acked_seq]:
+                    del self._store[s]
+        elif op == p.Cmd.REQUEST_BACKFILL:
+            if len(payload) >= 8:
+                start, end = struct.unpack("<II", payload[:8])
+                self._backfill(start, end)
+        elif op == p.Cmd.HAPTIC_TEST:
+            if payload:
+                self._haptic(payload[0])
+        elif op == p.Cmd.SET_TIME:
+            if len(payload) >= 8:
+                host_us = struct.unpack("<Q", payload[:8])[0]
+                # Recorded and reported; the sampling clock is never retimed,
+                # because that would corrupt the spectral estimate.
+                self.host_time_offset_us = self.t_us - host_us
+        elif op == p.Cmd.GET_CONFIG:
+            self._notify(p.UUID_STATUS, self.status_bytes())
+        elif op == p.Cmd.POWER_OFF:
+            self.end_set()
+            self._set_state(p.FwState.OFF)
+            self.running = False
+
+    def on_calib_write(self, data: bytes) -> None:
+        """A clinician-supplied record supersedes the measured one."""
+        try:
+            self.calib = p.parse_calib(data)
+        except p.ProtocolError:
+            return
+
+    def _backfill(self, start: int, end: int) -> None:
+        sent = 0
+        for seq in sorted(k for k in self._store if start <= k <= end):
+            # Served on its own characteristic so catching up never stalls the
+            # live stream.
+            self._notify(p.UUID_BACKFILL, self._store[seq])
+            sent += 1
+        if sent < (end - start) // p.BLE_EMG_BATCH:
+            self.gap_occurred = True
+
+    def _set_state(self, state) -> None:
+        if self.fw_state != state:
+            self.fw_state = state
+            self._event(p.Event.STATE_CHANGE, bytes([int(state)]))
+            self._notify(p.UUID_STATUS, self.status_bytes())
+
+    # ── calibration ───────────────────────────────────────────────────
+
+    async def _run_calibration(self, phase: int) -> None:
+        """The four-phase protocol, or one phase of it. A returning patient
+        with a stored profile takes the neutral-only path."""
+        self._set_state(p.FwState.CALIBRATION)
+        if phase == int(p.CalibPhase.NEUTRAL):
+            steps = [(p.CalibPhase.NEUTRAL, CALIB_NEUTRAL_MS)]
+        else:
+            steps = [(p.CalibPhase.REST, CALIB_REST_MS),
+                     (p.CalibPhase.MVC, CALIB_MVC_HOLD_MS * CALIB_MVC_ATTEMPTS),
+                     (p.CalibPhase.NEUTRAL, CALIB_NEUTRAL_MS),
+                     (p.CalibPhase.ROM_SWEEP, 12000)]
+        try:
+            for ph, ms in steps:
+                for pct in (0, 25, 50, 75, 100):
+                    self._event(p.Event.CALIB_PHASE_DONE
+                                if pct == 100 else p.Event.STATE_CHANGE,
+                                bytes([int(ph), pct]))
+                    await asyncio.sleep(ms / 5000.0 / max(0.01, self.profile.speed))
+        except asyncio.CancelledError:
+            self._set_state(p.FwState.STANDBY)
+            raise
+        self.calib.timestamp = int(time.time())
+        self._haptic(p.HapticPattern.BOOT_OK)
+        self._set_state(p.FwState.STANDBY)
+
+    # ── set control ───────────────────────────────────────────────────
+
+    def begin_set(self) -> None:
+        self.rep_count = 0
+        self.rep_state = p.RepState.WAIT_START
+        self._plan_i = 0
+        self._plan = None
+        self._fatigue_streak = 0
+        self.fatigue_flagged = False
+        self._mdf_history.clear()
+        self._set_state(p.FwState.OPERATIONAL)
+
+    def end_set(self) -> None:
+        if self.fw_state == p.FwState.OPERATIONAL:
+            self._event(p.Event.SET_COMPLETE,
+                        struct.pack("<H", self.rep_count))
+            self._set_state(p.FwState.STANDBY)
+
+    # ── movement generation ───────────────────────────────────────────
+
+    def _next_plan(self) -> RepPlan:
+        if self._plan_i < len(self.profile.plans):
+            plan = self.profile.plans[self._plan_i]
+        else:
+            plan = RepPlan(peak_deg=self.rng.uniform(88.0, 97.0),
+                           rise_s=self.rng.uniform(1.4, 1.9),
+                           fall_s=self.rng.uniform(1.5, 2.0))
+        self._plan_i += 1
+        return plan
+
+    def _build_trajectory(self, plan: RepPlan):
+        """Angle, upper-arm deviation and trunk deviation, one entry per tick.
+        The repetition cycle then observes this the way it would observe a real
+        arm — it is not told what the plan was."""
+        dt = TICK_MS / 1000.0
+        bottom = self.profile.angle_min + 2.0
+        peak = plan.peak_deg
+        out: list[tuple[float, float, float]] = []
+
+        # Tremor has to be a slow wobble, not per-tick white noise. White noise
+        # of a few tenths of a degree between 20 ms ticks is tens of deg/s of
+        # apparent velocity, which trips REP_HOLD_MAX_VEL_DPS and stops any
+        # hold ever being satisfied — the arm looks like it is vibrating, not
+        # resting. A 1.5 Hz wobble of the same amplitude is ~9 deg/s per degree,
+        # which is what an unsteady limb actually looks like to the gate.
+        tick = [0]
+
+        def tremor() -> float:
+            tick[0] += 1
+            return plan.tremor_deg * math.sin(2 * math.pi * 1.5 * tick[0] * dt)
+
+        # Bottom hold — this is what arms the repetition.
+        for _ in range(max(2, int(plan.bottom_hold_s / dt))):
+            out.append((bottom + tremor(), 0.0, 0.0))
+
+        if plan.abandon:
+            # Rises part way, then stalls past the phase timeout.
+            n = max(2, int(plan.rise_s / dt))
+            for i in range(n):
+                f = _min_jerk(i / n)
+                out.append((bottom + (peak - bottom) * f,
+                            plan.shoulder_deg * f, plan.trunk_deg * f))
+            for _ in range(int((REP_PHASE_TIMEOUT_MS / 1000.0 + 1.5) / dt)):
+                out.append((peak + tremor(), plan.shoulder_deg, plan.trunk_deg))
+            for i in range(max(2, int(plan.fall_s / dt))):
+                f = _min_jerk(i / max(2, int(plan.fall_s / dt)))
+                out.append((peak - (peak - bottom) * f, 0.0, 0.0))
+            return out
+
+        n = max(2, int(plan.rise_s / dt))
+        for i in range(n):
+            f = _min_jerk(i / n)
+            a = bottom + (peak - bottom) * f
+            if plan.jerkiness:
+                a += 3.0 * plan.jerkiness * math.sin(2 * math.pi * 2.1 * i * dt)
+            out.append((a, plan.shoulder_deg * f, plan.trunk_deg * f))
+
+        for _ in range(max(2, int(plan.top_hold_s / dt))):
+            out.append((peak + tremor(), plan.shoulder_deg, plan.trunk_deg))
+
+        n = max(2, int(plan.fall_s / dt))
+        for i in range(n):
+            f = _min_jerk(i / n)
+            a = peak - (peak - bottom) * f
+            if plan.jerkiness:
+                a += 2.0 * plan.jerkiness * math.sin(2 * math.pi * 1.8 * i * dt)
+            out.append((a, plan.shoulder_deg * (1 - f), plan.trunk_deg * (1 - f)))
+        return out
+
+    def _fatigue(self) -> float:
+        if self.total_reps < self.profile.fatigue_onset_rep:
+            return 0.0
+        return min(1.0, (self.total_reps - self.profile.fatigue_onset_rep) / 8.0)
+
+    def _tick_signals(self) -> None:
+        prev = self.angle
+        plan = self._plan
+        bottom = self.profile.angle_min + 2.0
+
+        if self.fw_state != p.FwState.OPERATIONAL:
+            self.angle += (bottom - self.angle) * 0.2
+            self.envelope = [self.profile.rest_envelope + abs(self.rng.gauss(0, 0.004))
+                             for _ in range(p.EMG_CHANNELS)]
+            self.mdf = [0.0, 0.0]
+            self.upper_arm_dev = self.trunk_dev = 0.0
+            self.velocity = 0.0
+            return
+
+        if plan is None:
+            plan = self._plan = self._next_plan()
+            self._traj = self._build_trajectory(plan)
+            self._traj_i = 0
+
+        angle, shoulder, trunk = self._traj[self._traj_i]
+        self._traj_i += 1
+        if self._traj_i >= len(self._traj):
+            self._plan = None
+
+        self.angle = angle
+        self.upper_arm_dev = shoulder + (START_POS_UPPER_ARM_TOL_DEG + 6.0
+                                         if plan.bad_start else 0.0)
+        self.trunk_dev = trunk
+        self.velocity = (angle - prev) / (TICK_MS / 1000.0)
+
+        fatigue = self._fatigue()
+        drive = max(0.0, (angle - bottom) / max(1.0, plan.peak_deg - bottom))
+        eccentric = self.velocity < -2.0
+        agonist = plan.activation * (0.35 + 0.75 * drive)
+        agonist *= (0.6 if eccentric else 1.0) * (1.0 + 0.25 * fatigue)
+        agonist = max(self.profile.rest_envelope, agonist + self.rng.gauss(0, 0.012))
+        antagonist = max(self.profile.rest_envelope,
+                         plan.cocontraction * agonist * (1.0 + 0.3 * fatigue)
+                         + self.rng.gauss(0, 0.008))
+        self.envelope = [min(1.5, agonist), min(1.5, antagonist)]
+
+        # MDF is meaningless below the activation floor, and the firmware
+        # reports zero there rather than a number nobody should trust.
+        mdf = (self.profile.mdf_baseline
+               - self.profile.mdf_fall_per_rep
+               * max(0, self.total_reps - self.profile.fatigue_onset_rep)
+               + self.rng.gauss(0, 0.3))
+        self.mdf = [mdf if e >= MDF_MIN_ACTIVATION else 0.0 for e in self.envelope]
+
+    # ── repetition cycle (rep_cycle.h) ────────────────────────────────
+
+    def _bands(self) -> tuple[float, float]:
+        rom = self.calib.rom
+        return (self.calib.angle_min + REP_EXTENDED_BAND_FRAC * rom,
+                self.calib.angle_min + REP_FLEXED_BAND_FRAC * rom)
+
+    def _detect_compensation(self) -> int:
+        """Evaluated during CONCENTRIC and ECCENTRIC only, and latched for the
+        repetition: feedback arrives at the top hold, not mid-movement."""
+        flags = 0
+        confirm_ticks = max(1, COMP_CONFIRM_MS // TICK_MS)
+
+        for flag, over in ((p.COMP_SHOULDER,
+                            self.upper_arm_dev > COMP_SHOULDER_HIKE_DEG),
+                           (p.COMP_TRUNK, self.trunk_dev > COMP_TRUNK_LEAN_DEG)):
+            self._comp_confirm[flag] = self._comp_confirm[flag] + 1 if over else 0
+            if self._comp_confirm[flag] >= confirm_ticks:
+                flags |= flag
+
+        plan = self._plan
+        swinging = bool(plan and plan.swing) and abs(self.velocity) > COMP_ARM_SWING_DPS
+        self._swing_ms = self._swing_ms + TICK_MS if swinging else 0
+        if self._swing_ms >= COMP_ARM_SWING_SUSTAIN_MS:
+            flags |= p.COMP_SWING
+        return flags
+
+    def _tick_rep_cycle(self) -> None:
+        if self.fw_state != p.FwState.OPERATIONAL:
+            return
+
+        ext_top, flex_bottom = self._bands()
+        in_extended = self.angle <= ext_top
+        in_flexed = self.angle >= flex_bottom
+        still = abs(self.velocity) <= REP_HOLD_MAX_VEL_DPS
+        self._phase_ms += TICK_MS
+
+        if self.rep_state == p.RepState.WAIT_START:
+            # Start-position gate: the counter stays frozen until the upper arm
+            # is where the protocol assumes it is.
+            ok = self.upper_arm_dev <= START_POS_UPPER_ARM_TOL_DEG
+            if ok != self._start_pos_ok:
+                self._start_pos_ok = ok
+                self._event(p.Event.START_POS_OK if ok else p.Event.START_POS_BAD,
+                            bytes([int(min(255, self.upper_arm_dev))]))
+                if not ok:
+                    self._haptic(p.HapticPattern.WRONG_START)
+            if ok and in_extended and still:
+                self.rep_state = p.RepState.EXTENDED_HOLD
+                self._hold_ms = 0
+                self._phase_ms = 0
+                self._event(p.Event.HOLD_START, bytes([int(self.rep_state)]))
+
+        elif self.rep_state == p.RepState.EXTENDED_HOLD:
+            # A hold means stationary, not merely inside the band.
+            if in_extended and still:
+                self._hold_ms += TICK_MS
+            else:
+                self._hold_ms = 0
+                if not in_extended:
+                    self.rep_state = p.RepState.WAIT_START
+            if self._acc is not None:
+                self._acc.hold(self.angle)
+            if self._hold_ms >= REP_HOLD_MS:
+                self.rep_state = p.RepState.CONCENTRIC
+                self._phase_ms = 0
+                self._acc = Accumulator(self.calib.angle_min, self.calib.angle_max)
+                self._acc.inp.t_start_us = self.t_us
+                self._comp_latched = 0
+                self._swing_ms = 0
+                self._event(p.Event.REP_START)
+
+        elif self.rep_state == p.RepState.CONCENTRIC:
+            self._acc.movement(self.angle, self.velocity, *self.envelope)
+            self._comp_latched |= self._detect_compensation()
+            if in_flexed and still:
+                self.rep_state = p.RepState.FLEXED_HOLD
+                self._hold_ms = 0
+                self._phase_ms = 0
+                self._event(p.Event.HOLD_START, bytes([int(self.rep_state)]))
+            elif self._phase_ms >= REP_PHASE_TIMEOUT_MS:
+                self._abandon()
+
+        elif self.rep_state == p.RepState.FLEXED_HOLD:
+            if in_flexed and still:
+                self._hold_ms += TICK_MS
+                self._acc.hold(self.angle)
+            else:
+                self._hold_ms = 0
+                if not in_flexed:
+                    self.rep_state = p.RepState.CONCENTRIC
+                    self._phase_ms = 0
+            if self._hold_ms >= REP_HOLD_MS:
+                self._complete_rep()
+
+        elif self.rep_state == p.RepState.ECCENTRIC:
+            if self._acc is not None:
+                self._acc.movement(self.angle, self.velocity, *self.envelope)
+                self._comp_latched |= self._detect_compensation()
+            if in_extended:
+                self.rep_state = p.RepState.EXTENDED_HOLD
+                self._hold_ms = 0
+                self._phase_ms = 0
+                self._acc = None
+                self._event(p.Event.HOLD_START, bytes([int(self.rep_state)]))
+            elif self._phase_ms >= REP_PHASE_TIMEOUT_MS:
+                self._abandon()
+
+    def _abandon(self) -> None:
+        self._event(p.Event.REP_ABANDONED,
+                    struct.pack("<Hh", self.rep_count + 1,
+                                int(self.angle * 10)))
+        self.rep_state = p.RepState.WAIT_START
+        self._acc = None
+        self._hold_ms = 0
+        self._phase_ms = 0
+
+    def _complete_rep(self) -> None:
+        """The repetition is counted at the end of the top hold, and that is
+        also when the haptic fires — a moment the patient is already stationary
+        and expecting it."""
+        self.rep_count += 1
+        self.total_reps += 1
+        self._acc.compensation(self._comp_latched)
+        self._acc.inp.t_end_us = self.t_us
+        result = self._acc.result(self.rep_count, DEFAULT_WEIGHTS)
+        self.results.append(result)
+
+        self._event(p.Event.REP_COMPLETE, result.to_event_payload())
+        for flag, evt in ((p.COMP_SHOULDER, p.Event.COMPENSATION_SHOULDER),
+                          (p.COMP_TRUNK, p.Event.COMPENSATION_TRUNK),
+                          (p.COMP_SWING, p.Event.COMPENSATION_SWING)):
+            if result.comp_flags & flag:
+                self._event(evt, struct.pack("<H", self.rep_count))
+        self._event(p.Event.HOLD_COMPLETE, bytes([int(p.RepState.FLEXED_HOLD)]))
+        self._haptic(haptic_for(result))
+
+        self._check_fatigue()
+
+        self.rep_state = p.RepState.ECCENTRIC
+        self._phase_ms = 0
+        self._hold_ms = 0
+
+    def _check_fatigue(self) -> None:
+        """Median frequency tracked as a regression across the set. The device
+        reports the condition; whether it ends the set is a host decision."""
+        mdf = max(self.mdf)
+        if mdf <= 0.0:
+            return
+        self._mdf_history.append((self.total_reps, mdf))
+        hist = self._mdf_history[-5:]
+        if len(hist) < 3:
+            return
+        n = len(hist)
+        mx = sum(x for x, _ in hist) / n
+        my = sum(y for _, y in hist) / n
+        den = sum((x - mx) ** 2 for x, _ in hist)
+        if not den:
+            return
+        slope = sum((x - mx) * (y - my) for x, y in hist) / den
+        self._fatigue_streak = (self._fatigue_streak + 1
+                                if slope < FATIGUE_MDF_SLOPE_THRESH else 0)
+        if self._fatigue_streak == FATIGUE_CONSEC_REPS:
+            self.fatigue_flagged = True
+            self._event(p.Event.FATIGUE_WARN,
+                        struct.pack("<hH", int(slope * 100), self.rep_count))
+            self._haptic(p.HapticPattern.REST_CUE)
+
+    # ── raw synthesis and transmit ────────────────────────────────────
+
+    def _emit_raw(self) -> None:
+        centre = max(self.mdf) or self.profile.mdf_baseline
+        samples = []
+        for c in range(p.EMG_CHANNELS):
+            self._bp[c].retune(centre * (1.0 + 0.02 * c))
+        for i in range(EMG_PER_TICK):
+            t = self.t_us / 1e6 + i / p.EMG_SAMPLE_RATE_HZ
+            hum = 15 * math.sin(2 * math.pi * 60 * t)   # battery operation limits it
+            vals = []
+            for c in range(p.EMG_CHANNELS):
+                v = self._bp[c].step(self.rng.gauss(0, 1)) * self.envelope[c] * 2600 + hum
+                if v > 32767 or v < -32768:
+                    self.clip_count[c] += 1
+                vals.append(v)
+            samples.append(tuple(vals))
+
+        frame = p.build_emg(self._emg_seq, self.t_us, samples)
+        self._store[self._emg_seq] = frame
+        self._notify(p.UUID_RAW, frame)
+        self._emg_seq += EMG_PER_TICK
+
+        for _ in range(IMU_PER_TICK):
+            ang = math.radians(self.angle)
+            upper = ((0.0, math.cos(math.radians(self.trunk_dev)),
+                      math.sin(math.radians(self.trunk_dev))),
+                     (0.0, 0.0, self.upper_arm_dev * 0.5))
+            fore = ((math.sin(ang), math.cos(ang), 0.0),
+                    (0.0, 0.0, self.velocity))
+            self._imu_pending.append((upper, fore))
+        while len(self._imu_pending) >= p.BLE_IMU_BATCH:
+            batch = self._imu_pending[:p.BLE_IMU_BATCH]
+            del self._imu_pending[:p.BLE_IMU_BATCH]
+            self._notify(p.UUID_RAW, p.build_imu(self._imu_seq, self.t_us, batch))
+            self._imu_seq += p.BLE_IMU_BATCH
+
+    def _emit_features(self) -> None:
+        self._notify(p.UUID_EVENTS, p.build_features(
+            self._feat_seq, self.t_us, self.envelope, self.mdf,
+            self.angle, self.upper_arm_dev, int(self.rep_state),
+            self.rep_count, self._comp_latched, self.sig_flags))
+        self._feat_seq += 1
+
+    # ── main loop ─────────────────────────────────────────────────────
+
+    async def run(self, duration_s: float | None = None) -> None:
+        self.running = True
+        wall0 = time.monotonic()
+        end_us = None if duration_s is None else int(duration_s * 1e6)
+        self._notify(p.UUID_STATUS, self.status_bytes())
+        while self.running:
+            self.t_us += TICK_MS * 1000
+            self.battery_pct = max(0.0, self.battery_pct - 0.0002)
+
+            self._tick_signals()
+            self._tick_rep_cycle()
+            self._emit_features()
+            self._emit_raw()
+
+            if (self.t_us // 1000) % 1000 < TICK_MS:
+                self._notify(p.UUID_STATUS, self.status_bytes())
+
+            if end_us is not None and self.t_us >= end_us:
+                break
+            target = wall0 + (self.t_us / 1e6) / max(0.01, self.profile.speed)
+            delay = target - time.monotonic()
+            await asyncio.sleep(delay if delay > 0.0005 else 0)
+        self.running = False
+
+    def stop(self) -> None:
+        self.running = False
