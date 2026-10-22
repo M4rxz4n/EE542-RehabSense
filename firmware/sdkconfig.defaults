@@ -1,0 +1,54 @@
+# RehabSense — ESP32-S3-WROOM-1 N8R8 (8 MB flash, 8 MB OCTAL PSRAM)
+#
+# The PSRAM block below is the one to get right. CONFIG_SPIRAM_MODE_OCT is NOT
+# the default; leave it at quad and an N8R8 module reports zero PSRAM, which
+# looks exactly like a hardware fault. Verify at boot:
+#     I (xxx) esp_psram: Found 8MB PSRAM device
+
+CONFIG_IDF_TARGET="esp32s3"
+
+# ── Flash ──────────────────────────────────────────────────────────────
+CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y
+CONFIG_ESPTOOLPY_FLASHMODE_QIO=y
+CONFIG_ESPTOOLPY_FLASHFREQ_80M=y
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+
+# ── PSRAM — octal, 80 MHz ──────────────────────────────────────────────
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_SPEED_80M=y
+CONFIG_SPIRAM_USE_MALLOC=y
+# Keep small allocations in internal SRAM; tier 2 asks for PSRAM explicitly
+# with heap_caps_malloc(MALLOC_CAP_SPIRAM).
+CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=16384
+CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP=y
+
+# ── CPU ────────────────────────────────────────────────────────────────
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+CONFIG_FREERTOS_HZ=1000
+
+# ── BLE: NimBLE only, no Bluetooth Classic on S3 anyway ────────────────
+CONFIG_BT_ENABLED=y
+CONFIG_BT_NIMBLE_ENABLED=y
+CONFIG_BT_NIMBLE_MAX_CONNECTIONS=1
+CONFIG_BT_NIMBLE_ATT_PREFERRED_MTU=247
+CONFIG_BT_NIMBLE_ROLE_CENTRAL=n
+CONFIG_BT_NIMBLE_ROLE_OBSERVER=n
+CONFIG_BT_NIMBLE_NVS_PERSIST=y
+
+# ── Wi-Fi off. It is not used, and leaving it enabled costs RAM. ───────
+CONFIG_ESP_WIFI_ENABLED=n
+
+# ── Watchdog: subscribes emg_dsp, imu_task and analysis ────────────────
+CONFIG_ESP_TASK_WDT_EN=y
+CONFIG_ESP_TASK_WDT_TIMEOUT_S=5
+CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU0=n
+CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU1=n
+
+# ── Float support in logging, used by the DSP debug paths ──────────────
+CONFIG_NEWLIB_NANO_FORMAT=n
+
+# ── Console ────────────────────────────────────────────────────────────
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y
