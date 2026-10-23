@@ -1,0 +1,13 @@
+## Managed components, pulled by `idf.py reconfigure`.
+dependencies:
+  idf:
+    version: ">=5.2"
+
+  # Vector-optimised biquads and FFT for the S3. The DSP chain depends on
+  # dsps_biquad_f32 and dsps_fft2r_fc32.
+  espressif/esp-dsp:
+    version: "^1.4.12"
+
+  # WS2812 driver for the on-board status LED (GPIO38 on DevKitC-1 v1.1).
+  espressif/led_strip:
+    version: "^2.5.5"

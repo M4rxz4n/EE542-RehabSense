@@ -1,0 +1,8 @@
+# RehabSense partition table — 8 MB flash
+# Name,     Type, SubType,  Offset,   Size,   Flags
+nvs,        data, nvs,      0x9000,   0x6000,
+phy_init,   data, phy,      0xf000,   0x1000,
+factory,    app,  factory,  0x10000,  3M,
+# Session spill: only used if PSRAM is ever unavailable. Tier 2 lives in PSRAM
+# on an N8R8, so this stays empty in normal operation.
+spill,      data, fat,      ,         2M,
