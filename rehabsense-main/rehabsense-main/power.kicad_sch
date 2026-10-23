@@ -204,9 +204,20 @@
 			(embedded_fonts no)
 		)
 	)
+	(text "Battery Connector"
+		(exclude_from_sim no)
+		(at 138.176 78.994 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "ca9bdf5e-a9da-46fd-8935-779ef2a472f2")
+	)
 	(symbol
 		(lib_id "B2B-PH-K-S:B2B-PH-K-S")
-		(at 138.43 90.17 0)
+		(at 138.43 88.9 0)
+		(mirror y)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -217,7 +228,7 @@
 		(fields_autoplaced yes)
 		(uuid "818c3b90-2f68-45d7-827b-7bb2e31c0875")
 		(property "Reference" "J1"
-			(at 146.05 87.6299 0)
+			(at 130.81 86.3599 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -228,7 +239,7 @@
 			)
 		)
 		(property "Value" "B2B-PH-K-S"
-			(at 146.05 90.1699 0)
+			(at 130.81 88.8999 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -239,7 +250,7 @@
 			)
 		)
 		(property "Footprint" "B2B_PH_K_S:JST_B2B-PH-K-S"
-			(at 138.43 90.17 0)
+			(at 138.43 88.9 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -251,7 +262,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 138.43 90.17 0)
+			(at 138.43 88.9 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -262,7 +273,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 138.43 90.17 0)
+			(at 138.43 88.9 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -273,7 +284,7 @@
 			)
 		)
 		(property "MANUFACTURER" "JST"
-			(at 138.43 90.17 0)
+			(at 138.43 88.9 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)

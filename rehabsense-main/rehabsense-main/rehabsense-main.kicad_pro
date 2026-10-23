@@ -648,7 +648,7 @@
         "uuid": "b751250a-7d43-475a-8447-686d399cd67b"
       }
     ],
-    "used_designators": "U1-8,#PWR1-26,C1-18,J1,R1-16,JP1-2",
+    "used_designators": "U1-10,#PWR1-31,C1-24,J1,R1-30,JP1-4",
     "variants": []
   },
   "sheets": [
@@ -675,6 +675,10 @@
     [
       "850bf0bc-2a4d-454f-b100-f2902529ee73",
       "emg"
+    ],
+    [
+      "933edaa2-3247-4768-9b68-813542b56179",
+      "adc"
     ]
   ],
   "text_variables": {},
