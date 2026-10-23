@@ -71,6 +71,13 @@ void status_led_set_link(bool connected)
     s_link_up = connected;
 }
 
+static bool s_battery_low;
+
+void status_led_set_battery_low(bool low)
+{
+    s_battery_low = low;
+}
+
 void status_led_tick(void)
 {
     if (!s_strip) {
@@ -107,6 +114,16 @@ void status_led_tick(void)
     if (!s_link_up && s_state == FW_STATE_OPERATIONAL) {
         if ((s_tick % 40) < 4) {
             r = 255; g = 0; b = 255;
+        }
+    }
+
+    /* Low-battery overlay: an amber double-blink every 2 s [PRD §5.7]. Shown
+     * in every state except FAULT, where red solid is the more urgent
+     * message and should not be interrupted. */
+    if (s_battery_low && s_state != FW_STATE_FAULT) {
+        const uint32_t p = s_tick % 40;
+        if (p < 3 || (p >= 6 && p < 9)) {
+            r = 255; g = 160; b = 0;
         }
     }
 

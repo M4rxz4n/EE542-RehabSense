@@ -13,9 +13,14 @@ never re-derives it. This module exists for two other reasons:
 
 If the two ever disagree, grading.c wins and this file is the bug.
 
-Mirrors the version where hold steadiness replaced the tempo term: the
-hold-based protocol fixes tempo by construction, and steadiness under an
-isometric hold is a direct motor-control measure.
+Mirrors PRD v1.4 §5.5: four components of equal weight — range, tempo,
+smoothness, co-contraction — then deductions, clamped to 0..100. Hold
+steadiness is computed and REPORTED but carries zero weight by default.
+
+On the single-channel prototype there is no antagonist envelope, so
+co-contraction is unmeasurable and its weight is zero; the score normalises by
+the weights actually in force, so the three remaining components take a third
+each rather than the best achievable score being capped at 75.
 """
 
 from __future__ import annotations
@@ -26,27 +31,34 @@ from dataclasses import dataclass, field
 import rehab_protocol as p
 
 # ── rehab_config.h ─────────────────────────────────────────────────────
-GRADE_W_RANGE = 0.40
-GRADE_W_ACTIVATION = 0.25
-GRADE_W_SMOOTHNESS = 0.20
-GRADE_W_HOLD_STEADY = 0.15
+
+#: Phase 1 prototype: one MyoWare on the biceps. Phase 2's custom PCB adds the
+#: triceps and with it the co-contraction component.
+EMG_N_CHANNELS = 1
+
+GRADE_W_RANGE = 0.25
+GRADE_W_TEMPO = 0.25
+GRADE_W_SMOOTHNESS = 0.25
+GRADE_W_COCONTRACTION = 0.25 if EMG_N_CHANNELS > 1 else 0.0
+GRADE_W_HOLD_STEADY = 0.0
 
 PENALTY_SHOULDER_HIKE = 20.0
 PENALTY_TRUNK_LEAN = 15.0
 PENALTY_ARM_SWING = 15.0
-PENALTY_COCONTRACTION = 15.0
-COCONTRACTION_THRESHOLD = 0.35
 
-#: A home rehab repetition is not meant to be a maximal effort, so activation
-#: saturates here rather than at 100 % MVC — scaling to 100 would make every
-#: honest repetition look weak.
-ACTIVATION_SATURATION = 0.60
+#: Velocity peaks above this fraction of the repetition's own peak velocity
+#: count as separate pushes.
+SMOOTH_PEAK_FRAC = 0.10
 
-#: "Velocity changing by half the mean speed every sample scores zero."
-JERK_REFERENCE = 0.5
+#: Each push beyond the first costs this much of the smoothness component.
+SMOOTH_PEAK_COST = 0.25
 
-#: Below this the limb barely moved and smoothness is not meaningful.
-MIN_MEAN_SPEED_DPS = 1.0
+#: Co-contraction scores zero at or above this antagonist/agonist ratio.
+COCON_ZERO_SCORE_RATIO = 0.50
+
+#: Tempo window, start threshold to finish threshold, excluding the hold.
+TEMPO_MIN_S = 1.5
+TEMPO_MAX_S = 3.5
 
 #: 5 degrees of wobble over a 1-second hold scores zero.
 STEADINESS_SD_REFERENCE = 5.0
@@ -54,15 +66,18 @@ STEADINESS_SD_REFERENCE = 5.0
 
 @dataclass
 class Weights:
+    """The scored part of rehab_runtime_cfg_t [PRD §5.9.1]."""
+
     w_range: float = GRADE_W_RANGE
-    w_activation: float = GRADE_W_ACTIVATION
+    w_tempo: float = GRADE_W_TEMPO
     w_smoothness: float = GRADE_W_SMOOTHNESS
+    w_cocontraction: float = GRADE_W_COCONTRACTION
     w_hold_steady: float = GRADE_W_HOLD_STEADY
     p_shoulder: float = PENALTY_SHOULDER_HIKE
     p_trunk: float = PENALTY_TRUNK_LEAN
     p_swing: float = PENALTY_ARM_SWING
-    p_cocontraction: float = PENALTY_COCONTRACTION
-    cocontraction_threshold: float = COCONTRACTION_THRESHOLD
+    tempo_min_s: float = TEMPO_MIN_S
+    tempo_max_s: float = TEMPO_MAX_S
 
 
 DEFAULT_WEIGHTS = Weights()
@@ -73,18 +88,24 @@ class GradingInput:
     """grading_input_t. Accumulated over one repetition at FEATURE_RATE_HZ."""
 
     peak_angle: float = 0.0
-    angle_min: float = 0.0
-    angle_max: float = 0.0
+    angle_min: float = 0.0           # calibrated extension, the angle origin
+    target_angle: float = 110.0      # therapist-set [PRD §5.9.1]
+    tempo_s: float = 0.0             # start threshold to finish threshold
+
     activation_sum: float = 0.0      # summed agonist %MVC
     antagonist_sum: float = 0.0
+    overlap_sum: float = 0.0         # antagonist WHILE the agonist was active
     activation_n: int = 0
-    jerk_sum: float = 0.0            # summed |d(velocity)|
-    speed_sum: float = 0.0           # summed |velocity|
-    jerk_n: int = 0
-    hold_sum: float = 0.0            # angle during the holds
+    overlap_n: int = 0
+
+    velocity_peaks: int = 0          # above 10 % of this rep's peak speed
+
+    hold_sum: float = 0.0            # angle during the confirming hold
     hold_sum_sq: float = 0.0
     hold_n: int = 0
+
     comp_flags: int = 0
+    jolt_excluded: bool = False
 
     # Not part of grading_input_t; carried so the simulator can report them.
     t_start_us: int = 0
@@ -100,9 +121,11 @@ class RepResult:
     t_end_us: int = 0
     peak_angle_deg: float = 0.0
     rom_fraction: float = 0.0
+    tempo_s: float = 0.0
     activation: float = 0.0
     cocontraction: float = 0.0
     smoothness: float = 0.0
+    velocity_peaks: int = 0
     hold_steadiness: float = 0.0
     comp_flags: int = 0
     score: int = 0
@@ -129,58 +152,83 @@ def _clamp01(v: float) -> float:
 def evaluate(inp: GradingInput, w: Weights = DEFAULT_WEIGHTS) -> RepResult:
     """grading_evaluate()."""
     out = RepResult(t_start_us=inp.t_start_us, t_end_us=inp.t_end_us,
-                    comp_flags=inp.comp_flags)
+                    comp_flags=inp.comp_flags, tempo_s=inp.tempo_s)
 
-    rom = inp.angle_max - inp.angle_min
-
-    # Range achieved, as a fraction of this patient's calibrated ROM — never
-    # an absolute angle.
+    # Range of motion: peak angle against the therapist's TARGET angle, not
+    # against the patient's measured ROM. The therapist prescribes what the
+    # patient should reach; measured ROM is what they currently can, and
+    # scoring against the latter would hand full marks to a shrinking range.
     rng = 0.0
-    if rom > 1.0:
-        rng = _clamp01((inp.peak_angle - inp.angle_min) / rom)
+    if inp.target_angle > 1.0:
+        rng = _clamp01((inp.peak_angle - inp.angle_min) / inp.target_angle)
     out.peak_angle_deg = inp.peak_angle
     out.rom_fraction = rng
 
-    # Target-muscle activation. A full-range curl driven by momentum rather
-    # than muscle scores badly here even though its range looks perfect, which
-    # is the whole point of fusing EMG with motion.
-    activation = inp.activation_sum / inp.activation_n if inp.activation_n else 0.0
-    out.activation = activation
-    activation_score = _clamp01(activation / ACTIVATION_SATURATION)
+    # Tempo: full credit inside the prescribed window, falling off linearly
+    # over one window-width either side. Both directions matter — too fast is
+    # momentum, too slow is usually guarding or a stall mid-range.
+    tempo = 0.0
+    if inp.tempo_s > 0.0 and w.tempo_max_s > w.tempo_min_s:
+        if w.tempo_min_s <= inp.tempo_s <= w.tempo_max_s:
+            tempo = 1.0
+        else:
+            width = w.tempo_max_s - w.tempo_min_s
+            dist = (w.tempo_min_s - inp.tempo_s if inp.tempo_s < w.tempo_min_s
+                    else inp.tempo_s - w.tempo_max_s)
+            tempo = _clamp01(1.0 - dist / width)
 
-    # Co-contraction: antagonist fighting the movement.
-    cocon = 0.0
-    if inp.activation_sum > 1e-6:
-        cocon = inp.antagonist_sum / inp.activation_sum
-    out.cocontraction = cocon
-
-    # Smoothness as dimensionless jerk. Normalising by the movement's own mean
-    # speed is the point: raw mean |d(velocity)| scales with how fast the limb
-    # moves, so an unnormalised metric hands a better score to anyone who
-    # simply moves slower — rewarding exactly the guarding behaviour this
-    # device exists to discourage.
+    # Smoothness: count of velocity peaks above 10 % of the repetition's own
+    # peak velocity; a single peak scores 100 [PRD §5.5]. Counting peaks is
+    # scale-free, which is what keeps it from rewarding slow movement — the
+    # failure mode an unnormalised jerk metric has, and one that would reward
+    # exactly the guarding behaviour this device exists to discourage.
     smoothness = 0.0
-    if inp.jerk_n > 0:
-        mean_jerk = inp.jerk_sum / inp.jerk_n
-        mean_speed = inp.speed_sum / inp.jerk_n
-        if mean_speed > MIN_MEAN_SPEED_DPS:
-            smoothness = _clamp01(1.0 - (mean_jerk / mean_speed) / JERK_REFERENCE)
+    if inp.velocity_peaks > 0:
+        smoothness = _clamp01(1.0 - (inp.velocity_peaks - 1) * SMOOTH_PEAK_COST)
     out.smoothness = smoothness
+    out.velocity_peaks = inp.velocity_peaks
 
-    # Hold steadiness: inverse standard deviation of the angle during the holds.
+    # Co-contraction: antagonist activation as a fraction of agonist, while
+    # the agonist is active. Each channel is normalised against its OWN
+    # calibrated maximum, which is why calibration captures a separate triceps
+    # maximum when a second channel exists.
+    cocon_ratio = 0.0
+    cocon_score = 1.0
+    if EMG_N_CHANNELS > 1:
+        if inp.overlap_n and inp.activation_n and inp.activation_sum > 1e-6:
+            mean_antag = inp.overlap_sum / inp.overlap_n
+            mean_agon = inp.activation_sum / inp.activation_n
+            if mean_agon > 1e-6:
+                cocon_ratio = mean_antag / mean_agon
+        if COCON_ZERO_SCORE_RATIO > 1e-6:
+            cocon_score = _clamp01(1.0 - cocon_ratio / COCON_ZERO_SCORE_RATIO)
+    out.cocontraction = cocon_ratio
+
+    # Mean agonist activation. Reported for the host plot and for offline
+    # tuning; not a scored component. The activation GATE in rep_cycle is what
+    # enforces that the muscle did the work.
+    if inp.activation_n:
+        out.activation = inp.activation_sum / inp.activation_n
+
+    # Hold steadiness: reported always, scored only if given a weight.
     steadiness = 0.0
     if inp.hold_n > 1:
         mean = inp.hold_sum / inp.hold_n
-        var = inp.hold_sum_sq / inp.hold_n - mean * mean
-        if var < 0.0:
-            var = 0.0
-        steadiness = _clamp01(1.0 - (math.sqrt(var) / STEADINESS_SD_REFERENCE))
+        var = max(0.0, inp.hold_sum_sq / inp.hold_n - mean * mean)
+        steadiness = _clamp01(1.0 - math.sqrt(var) / STEADINESS_SD_REFERENCE)
     out.hold_steadiness = steadiness
 
-    score = 100.0 * (w.w_range * rng +
-                     w.w_activation * activation_score +
-                     w.w_smoothness * smoothness +
-                     w.w_hold_steady * steadiness)
+    # Normalise by the weights in force, so zeroing a component redistributes
+    # its share rather than capping the achievable score below 100.
+    wsum = (w.w_range + w.w_tempo + w.w_smoothness + w.w_cocontraction +
+            w.w_hold_steady)
+    score = 0.0
+    if wsum > 1e-6:
+        score = 100.0 * (w.w_range * rng +
+                         w.w_tempo * tempo +
+                         w.w_smoothness * smoothness +
+                         w.w_cocontraction * cocon_score +
+                         w.w_hold_steady * steadiness) / wsum
 
     if inp.comp_flags & p.COMP_SHOULDER:
         score -= w.p_shoulder
@@ -189,11 +237,6 @@ def evaluate(inp: GradingInput, w: Weights = DEFAULT_WEIGHTS) -> RepResult:
     if inp.comp_flags & p.COMP_SWING:
         score -= w.p_swing
 
-    if cocon > w.cocontraction_threshold:
-        # Scaled: twice the threshold costs the full penalty.
-        over = (cocon - w.cocontraction_threshold) / w.cocontraction_threshold
-        score -= w.p_cocontraction * _clamp01(over)
-
     out.score = int(max(0.0, min(100.0, score)) + 0.5)
     return out
 
@@ -201,30 +244,60 @@ def evaluate(inp: GradingInput, w: Weights = DEFAULT_WEIGHTS) -> RepResult:
 def haptic_for(result: RepResult) -> int:
     """Every completed repetition is counted and then graded; the patient hears
     only whether the form was clean. Nothing is silently discarded."""
-    return (p.HapticPattern.REP_COMPENSATED if result.comp_flags
-            else p.HapticPattern.REP_COMPLETE)
+    return (p.HapticPattern.REP_FLAGGED if result.comp_flags
+            else p.HapticPattern.REP_CLEAN)
 
 
 class Accumulator:
     """Builds a GradingInput tick by tick at FEATURE_RATE_HZ, the way
     rep_cycle.c does while a repetition is underway."""
 
-    def __init__(self, angle_min: float, angle_max: float) -> None:
-        self.inp = GradingInput(angle_min=angle_min, angle_max=angle_max)
-        self._last_velocity: float | None = None
+    #: One-pole low pass on velocity, matching REP_VEL_LPF_HZ. Peaks are
+    #: detected on the filtered signal so that sensor noise does not read as a
+    #: correction the patient made.
+    VEL_LPF_HZ = 5.0
+
+    def __init__(self, angle_min: float, target_angle: float = 110.0,
+                 feature_rate_hz: int = 50) -> None:
+        self.inp = GradingInput(angle_min=angle_min, target_angle=target_angle)
+        self._rate = feature_rate_hz
+        self._vel_lp = 0.0
+        self._prev_vel_lp = 0.0
+        self._peak_speed = 0.0
+        self._peaks: list[float] = []
+        self._rising = False
 
     def movement(self, angle: float, velocity: float, agonist: float,
-                 antagonist: float) -> None:
+                 antagonist: float = 0.0, agonist_active: bool = True) -> None:
         i = self.inp
         i.peak_angle = max(i.peak_angle, angle)
+
+        dt = 1.0 / self._rate
+        rc = 1.0 / (2.0 * math.pi * self.VEL_LPF_HZ)
+        alpha = dt / (rc + dt)
+        self._vel_lp += alpha * (velocity - self._vel_lp)
+
+        speed = abs(self._vel_lp)
+        self._peak_speed = max(self._peak_speed, speed)
+
+        prev = abs(self._prev_vel_lp)
+        if speed > prev:
+            self._rising = True
+        elif self._rising and speed < prev:
+            self._peaks.append(prev)
+            self._rising = False
+        self._prev_vel_lp = self._vel_lp
+
         i.activation_sum += agonist
-        i.antagonist_sum += antagonist
         i.activation_n += 1
-        if self._last_velocity is not None:
-            i.jerk_sum += abs(velocity - self._last_velocity)
-            i.speed_sum += abs(velocity)
-            i.jerk_n += 1
-        self._last_velocity = velocity
+
+        if EMG_N_CHANNELS > 1:
+            i.antagonist_sum += antagonist
+            # Evaluated only while the agonist is active: antagonist activity
+            # during a rest phase is not the patient braking themselves.
+            if agonist_active:
+                i.overlap_sum += antagonist
+                i.overlap_n += 1
 
     def hold(self, angle: float) -> None:
         i = self.inp
@@ -233,10 +306,23 @@ class Accumulator:
         i.hold_n += 1
 
     def compensation(self, flags: int) -> None:
-        """Latched during the repetition, reported at the top hold."""
+        """Latched during the repetition, reported at the confirming hold."""
         self.inp.comp_flags |= flags
 
+    def tempo(self, seconds: float) -> None:
+        """Start threshold to finish threshold, excluding the hold."""
+        self.inp.tempo_s = seconds
+
+    def _significant_peaks(self) -> int:
+        """Peaks clearing 10 % of this repetition's peak speed. Counted at the
+        end, because the reference is not known until then."""
+        if self._peak_speed <= 0.0:
+            return 0
+        floor_v = self._peak_speed * SMOOTH_PEAK_FRAC
+        return sum(1 for m in self._peaks if m >= floor_v)
+
     def result(self, index: int, w: Weights = DEFAULT_WEIGHTS) -> RepResult:
+        self.inp.velocity_peaks = self._significant_peaks()
         out = evaluate(self.inp, w)
         out.index = index
         return out

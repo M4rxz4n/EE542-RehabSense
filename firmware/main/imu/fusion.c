@@ -175,6 +175,7 @@ void fusion_set_calibration(const calib_record_t *calib)
     }
     memcpy(&s_calib, calib, sizeof(s_calib));
     s_have_calib = true;
+    fusion_set_gyro_bias(s_calib.gyro_bias);
 }
 
 void fusion_get_quats(quat_t *upper, quat_t *fore)
@@ -192,9 +193,63 @@ static float angle_about_axis(quat_t q, const float axis[3])
     return 2.0f * atan2f(proj, q.w) * RAD2DEG;
 }
 
+/* ── Gyroscope bias ──────────────────────────────────────────────────── */
+
+static double   s_bias_sum[2][3];
+static uint32_t s_bias_n;
+static bool     s_bias_capturing;
+static float    s_gyro_bias[2][3];
+
+void fusion_bias_capture_begin(void)
+{
+    memset(s_bias_sum, 0, sizeof(s_bias_sum));
+    s_bias_n         = 0;
+    s_bias_capturing = true;
+}
+
+esp_err_t fusion_bias_capture_end(float bias_out[2][3])
+{
+    s_bias_capturing = false;
+
+    /* A fraction of a second of samples is not an average. */
+    if (s_bias_n < (uint32_t)(IMU_SAMPLE_RATE_HZ / 4)) {
+        return ESP_FAIL;
+    }
+    for (int s = 0; s < 2; s++) {
+        for (int a = 0; a < 3; a++) {
+            bias_out[s][a] = (float)(s_bias_sum[s][a] / (double)s_bias_n);
+        }
+    }
+    return ESP_OK;
+}
+
+void fusion_set_gyro_bias(const float bias[2][3])
+{
+    memcpy(s_gyro_bias, bias, sizeof(s_gyro_bias));
+}
+
 void fusion_update(const imu_sample_t *upper, const imu_sample_t *fore)
 {
     const float dt = 1.0f / (float)IMU_SAMPLE_RATE_HZ;
+
+    if (s_bias_capturing) {
+        for (int a = 0; a < 3; a++) {
+            s_bias_sum[0][a] += upper->gyro[a];
+            s_bias_sum[1][a] += fore->gyro[a];
+        }
+        s_bias_n++;
+    }
+
+    /* Subtract the calibrated bias before fusing. An uncorrected bias of even
+     * a fraction of a degree per second integrates into a visible angle error
+     * over a set, and it is the one error the patient cannot see. */
+    imu_sample_t u = *upper, f = *fore;
+    for (int a = 0; a < 3; a++) {
+        u.gyro[a] -= s_gyro_bias[0][a];
+        f.gyro[a] -= s_gyro_bias[1][a];
+    }
+    upper = &u;
+    fore  = &f;
 
     madgwick_update(&s_upper.q, upper->gyro, upper->accel, dt);
     madgwick_update(&s_fore.q,  fore->gyro,  fore->accel,  dt);
@@ -215,11 +270,23 @@ void fusion_update(const imu_sample_t *upper, const imu_sample_t *fore)
                                      upper->gyro[1] * upper->gyro[1] +
                                      upper->gyro[2] * upper->gyro[2]);
 
+    {
+        const float au = sqrtf(upper->accel[0] * upper->accel[0] +
+                               upper->accel[1] * upper->accel[1] +
+                               upper->accel[2] * upper->accel[2]);
+        const float af = sqrtf(fore->accel[0] * fore->accel[0] +
+                               fore->accel[1] * fore->accel[1] +
+                               fore->accel[2] * fore->accel[2]);
+        s_out.max_accel_g = (au > af) ? au : af;
+    }
+
     if (!s_have_calib) {
         /* Before calibration there is no neutral reference, so the absolute
          * angle is meaningless. Report zero rather than a plausible lie. */
         s_out.elbow_angle_deg   = 0.0f;
         s_out.upper_arm_dev_deg = 0.0f;
+        s_out.fore_arm_dev_deg  = 0.0f;
+        s_out.common_mode_deg   = 0.0f;
         return;
     }
 
@@ -241,11 +308,46 @@ void fusion_update(const imu_sample_t *upper, const imu_sample_t *fore)
      * rep_cycle can be fractions of their real ROM. */
     s_out.elbow_angle_deg = s_calib.angle_min + fabsf(raw_angle);
 
-    /* How far the upper arm has moved from neutral — the shoulder-hike and
-     * trunk-lean signal. */
+    /* How far the upper arm has moved from neutral — the shoulder-hike
+     * signal. */
     float w = fabsf(rel_u.w);
     if (w > 1.0f) w = 1.0f;
     s_out.upper_arm_dev_deg = 2.0f * acosf(w) * RAD2DEG;
+
+    float wf = fabsf(rel_f.w);
+    if (wf > 1.0f) wf = 1.0f;
+    s_out.fore_arm_dev_deg = 2.0f * acosf(wf) * RAD2DEG;
+
+    /* Common-mode rotation: the part BOTH sensors share [PRD §5.5].
+     *
+     * Trunk lean carries the whole arm, so both IMUs rotate together about
+     * very nearly the same axis. A shoulder hike moves the upper arm while the
+     * forearm follows the elbow instead, so the two axes diverge. Taking the
+     * smaller of the two deviations, gated on the axes pointing the same way,
+     * separates the two movements.
+     *
+     * This matters beyond correctness: inferring trunk lean from upper-arm
+     * deviation alone (the earlier approach) made every shoulder hike past the
+     * trunk threshold set BOTH flags, costing -35 instead of -20 and biasing
+     * every staged-compensation repetition downward. */
+    {
+        const float nu = sqrtf(rel_u.x * rel_u.x + rel_u.y * rel_u.y +
+                               rel_u.z * rel_u.z);
+        const float nf = sqrtf(rel_f.x * rel_f.x + rel_f.y * rel_f.y +
+                               rel_f.z * rel_f.z);
+
+        s_out.common_mode_deg = 0.0f;
+        if (nu > 1e-4f && nf > 1e-4f) {
+            const float dot = (rel_u.x * rel_f.x + rel_u.y * rel_f.y +
+                               rel_u.z * rel_f.z) / (nu * nf);
+            if (fabsf(dot) >= COMMON_MODE_AXIS_DOT) {
+                s_out.common_mode_deg =
+                    (s_out.upper_arm_dev_deg < s_out.fore_arm_dev_deg)
+                        ? s_out.upper_arm_dev_deg
+                        : s_out.fore_arm_dev_deg;
+            }
+        }
+    }
 
     if (s_prev_valid) {
         s_out.elbow_velocity_dps =

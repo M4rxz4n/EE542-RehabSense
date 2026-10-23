@@ -17,8 +17,11 @@
 typedef struct {
     float elbow_angle_deg;      /* flexion about the calibrated axis */
     float upper_arm_dev_deg;    /* total rotation from calibrated neutral */
+    float fore_arm_dev_deg;     /* same, forearm — needed for common mode */
+    float common_mode_deg;      /* rotation BOTH sensors share [PRD §5.5] */
     float elbow_velocity_dps;   /* signed, for smoothness and swing checks */
     float upper_arm_rate_dps;   /* magnitude, for arm-swing detection */
+    float max_accel_g;          /* larger of the two |accel|, for jolt detect */
     bool  anchored;             /* true just after a rest-phase re-anchor */
 } fusion_out_t;
 
@@ -36,6 +39,24 @@ void fusion_get_quats(quat_t *upper, quat_t *fore);
 /* Neutral pose, flexion axis and ROM come from here. Call after calibration
  * and after every session re-zero. */
 void fusion_set_calibration(const calib_record_t *calib);
+
+/* ── Gyroscope bias capture [PRD §5.3, step 1] ───────────────────────────
+ *
+ * The rest step establishes gyroscope bias as well as the EMG noise floor.
+ * Bias is accumulated here rather than in calibration.c because fusion is
+ * where the raw samples arrive; calibration only sees derived values.
+ *
+ * Movement during the capture corrupts the bias and therefore the joint angle
+ * for the whole session, with no obvious symptom — which is why the step is
+ * gated on stillness. */
+void fusion_bias_capture_begin(void);
+
+/* Writes [upper][xyz] and [fore][xyz] in deg/s. Returns ESP_FAIL if too few
+ * samples were collected to form an average. */
+esp_err_t fusion_bias_capture_end(float bias_out[2][3]);
+
+/* Apply a stored bias. Called after calibration and on load from NVS. */
+void fusion_set_gyro_bias(const float bias[2][3]);
 
 /* ── ROM sweep support ───────────────────────────────────────────────── */
 

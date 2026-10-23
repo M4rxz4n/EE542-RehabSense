@@ -45,6 +45,8 @@ typedef struct {
     /* FFT accumulation for median frequency. */
     float    fft_window[MDF_FFT_SIZE];
     uint32_t fft_pos;
+    float    pre_notch_pow;      /* EMA, for the mains-pickup measure */
+    float    post_notch_pow;
 
     uint32_t clip_count;
     float    last_envelope_raw;   /* pre-normalisation, for calibration */
@@ -232,10 +234,25 @@ bool emg_dsp_push(const emg_frame_t *frame, emg_features_t *out)
             st->clip_count++;
         }
 
+        float pre_notch = 0.0f;
         for (int b = 0; b < N_BIQUADS; b++) {
             float y;
+            /* Biquad 2 is the 60 Hz notch. The power it removes IS the mains
+             * pickup, so tapping either side of it measures interference
+             * without a second spectral estimate: the notch is narrow enough
+             * that it takes essentially nothing else [PRD §5.3, step 0]. */
+            if (b == 2) {
+                pre_notch = x;
+            }
             dsps_biquad_f32(&x, &y, 1, st->filt.coeffs[b], st->filt.state[b]);
             x = y;
+        }
+
+        /* Slow EMA either side of the notch, ~1 s at 2 kSPS. */
+        {
+            const float a = 1.0f / (float)EMG_SAMPLE_RATE_HZ;
+            st->pre_notch_pow  += a * (pre_notch * pre_notch - st->pre_notch_pow);
+            st->post_notch_pow += a * (x * x - st->post_notch_pow);
         }
 
         /* Sliding sum of squares — O(1) per sample rather than re-summing
@@ -294,8 +311,12 @@ bool emg_dsp_push(const emg_frame_t *frame, emg_features_t *out)
 
             if (s_have_calib) {
                 /* Force to zero below the rest baseline plus margin, so that
-                 * noise does not read as weak activation. */
-                const float floor_v = s_calib.emg_rest_rms[ch] * 1.5f;
+                 * noise does not read as weak activation. The same multiplier
+                 * is used by activation.c to place its thresholds on this
+                 * scale — if the two diverge, the muscle-on gate stops
+                 * meaning what calibration measured. */
+                const float floor_v =
+                    s_calib.emg_rest_rms[ch] * EMG_NOISE_FLOOR_MULT;
                 env = (env > floor_v) ? (env - floor_v) : 0.0f;
 
                 if (s_calib.emg_mvc[ch] > floor_v) {
@@ -309,6 +330,16 @@ bool emg_dsp_push(const emg_frame_t *frame, emg_features_t *out)
             out->envelope[ch]   = env;
             out->mdf[ch]        = st->last_mdf;
             out->clip_count[ch] = st->clip_count;
+
+            /* Mains pickup as the fraction of power the notch removes. The
+             * contact check reads this; battery operation keeps it small, but
+             * lead length makes it worth measuring rather than assuming. */
+            out->mains_frac[ch] = 0.0f;
+            if (st->pre_notch_pow > 1e-12f) {
+                const float removed =
+                    (st->pre_notch_pow - st->post_notch_pow) / st->pre_notch_pow;
+                out->mains_frac[ch] = (removed > 0.0f) ? removed : 0.0f;
+            }
 
             /* Sustained clipping means the gain pot is too high and the
              * spectrum is being destroyed — report it rather than silently

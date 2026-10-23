@@ -16,6 +16,7 @@
 
 #include "session_buffer.h"
 #include "rehab_config.h"
+#include "ble_service.h"
 
 static const char *TAG = "sessbuf";
 
@@ -197,4 +198,78 @@ void session_buffer_stats(session_stats_t *out)
     out->psram_backed     = s_psram;
     out->gap_occurred     = s_gap;
     out->capacity_samples = s_emg_cap;
+}
+
+/* ── Backfill [PRD §5.9] ─────────────────────────────────────────────── */
+
+static uint32_t s_bf_next;      /* next sequence to send */
+static uint32_t s_bf_end;       /* exclusive */
+static bool     s_bf_active;
+
+esp_err_t session_buffer_request_backfill(uint32_t from_seq, uint32_t to_seq)
+{
+    if (to_seq <= from_seq) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (!s_emg) {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    const uint32_t oldest = (s_emg_seq > s_emg_cap)
+                          ? (uint32_t)(s_emg_seq - s_emg_cap) : 0;
+
+    if (from_seq >= s_emg_seq) {
+        return ESP_ERR_NOT_FOUND;   /* entirely in the future */
+    }
+
+    if (from_seq < oldest) {
+        /* Part of the range has aged out. Serve what remains and mark the
+         * gap, so the host knows its reconstruction is incomplete rather than
+         * trusting a short range [PRD §5.9]. */
+        ESP_LOGW(TAG, "backfill %" PRIu32 "..%" PRIu32 " partly aged out; "
+                      "serving from %" PRIu32, from_seq, to_seq, oldest);
+        s_gap     = true;
+        from_seq  = oldest;
+    }
+
+    s_bf_next   = from_seq;
+    s_bf_end    = (to_seq > s_emg_seq) ? s_emg_seq : to_seq;
+    s_bf_active = (s_bf_next < s_bf_end);
+
+    ESP_LOGI(TAG, "backfill queued: %" PRIu32 "..%" PRIu32,
+             s_bf_next, s_bf_end);
+    return s_bf_active ? ESP_OK : ESP_ERR_NOT_FOUND;
+}
+
+bool session_buffer_backfill_pending(void) { return s_bf_active; }
+
+bool session_buffer_service_backfill(void)
+{
+    if (!s_bf_active) {
+        return false;
+    }
+
+    static emg_frame_t chunk[BLE_EMG_BATCH];
+    const size_t want = (s_bf_end - s_bf_next > BLE_EMG_BATCH)
+                      ? BLE_EMG_BATCH : (size_t)(s_bf_end - s_bf_next);
+
+    const size_t got = session_buffer_read_emg(s_bf_next, chunk, want);
+    if (got == 0) {
+        s_bf_active = false;
+        return false;
+    }
+
+    if (ble_notify_backfill(chunk, got, s_bf_next) != ESP_OK) {
+        /* No subscriber, or the stack is busy. Leave the cursor where it is
+         * and try again on the next pass rather than dropping the range. */
+        return true;
+    }
+
+    s_bf_next += (uint32_t)got;
+    if (s_bf_next >= s_bf_end) {
+        s_bf_active = false;
+        ESP_LOGI(TAG, "backfill complete to %" PRIu32, s_bf_next);
+        return false;
+    }
+    return true;
 }

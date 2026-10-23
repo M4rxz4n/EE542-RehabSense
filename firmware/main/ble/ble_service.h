@@ -11,6 +11,7 @@
  *   0005  Device status      read, notify
  *   0006  Backfill           notify
  *   0007  Calibration record read, write
+ *   0008  Configuration      read, notify  — serialised TLV [PRD §5.9.1]
  *
  * Frames fit 180 bytes, not the 244 a 247-byte MTU allows: macOS caps ATT MTU
  * at 185 and bleak exposes no portable MTU request, so the conservative size
@@ -45,6 +46,11 @@
 #define CMD_SET_TIME             0x0B   /* u64 host epoch us       */
 #define CMD_POWER_OFF            0x0C
 
+/* Not a wire opcode. A write to the calibration characteristic reaches the
+ * command callback under this value, so a calib_record_t can never arrive at
+ * the SET_CONFIG TLV parser — the two used to share 0x08. */
+#define CMD_INTERNAL_CALIB_WRITE 0xF0
+
 /* 14-byte header shared by every stream frame. */
 typedef struct __attribute__((packed)) {
     uint8_t  type;
@@ -70,6 +76,19 @@ typedef struct __attribute__((packed)) {
     int64_t  host_time_offset_us;
 } device_status_t;
 
+/* Packed, so there is no padding anywhere in this struct — and the host's
+ * struct.Struct in rehab_protocol.py must agree byte for byte. Pinning the
+ * size here means a field added on one side and forgotten on the other fails
+ * the build instead of silently shifting every field after it.
+ *
+ * This is not hypothetical: the host carried explicit pad bytes this struct
+ * does not have, so everything after battery_mv was read from the wrong
+ * offset. The host suites did not catch it because they parse what the host
+ * itself builds. */
+_Static_assert(sizeof(device_status_t) == 24 + 5 * EMG_N_CHANNELS,
+               "device_status_t layout changed — update STATUS in "
+               "host/rehab_protocol.py to match");
+
 /* Commands arrive here; the state machine owns what happens next. */
 typedef void (*ble_command_cb_t)(uint8_t opcode, const uint8_t *payload,
                                  size_t len);
@@ -87,6 +106,9 @@ esp_err_t ble_notify_imu(const imu_sample_t *upper, const imu_sample_t *fore,
 esp_err_t ble_notify_features(const features_t *f, uint32_t seq);
 esp_err_t ble_notify_event(const rehab_event_t *evt);
 esp_err_t ble_notify_backfill(const emg_frame_t *frames, size_t n, uint32_t seq);
+
+/* Publish the serialised configuration for GET_CONFIG. */
+esp_err_t ble_notify_config(const uint8_t *tlv, size_t len);
 
 void ble_update_status(const device_status_t *status);
 

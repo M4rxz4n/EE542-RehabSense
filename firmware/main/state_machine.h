@@ -20,6 +20,7 @@
 #define STATE_MACHINE_H
 
 #include "rehab_types.h"
+#include "calibration.h"
 
 void       sm_init(void);
 fw_state_t sm_state(void);
@@ -28,7 +29,11 @@ fw_state_t sm_state(void);
  * reported, never silently ignored. */
 void sm_request_start_session(uint8_t exercise_id);
 void sm_request_stop_session(void);
-void sm_request_calibration(bool full);
+
+/* Run one calibration step, or CALIB_STEP_ALL for the whole protocol. A failed
+ * step is repeated on its own rather than restarting [PRD §5.3]. */
+void sm_request_calibration(calib_phase_t step);
+void sm_request_recalibration(void);
 void sm_request_power_off(void);
 
 void sm_fault(fault_code_t code, const char *detail);

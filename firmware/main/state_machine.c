@@ -17,6 +17,8 @@
 #include "session_buffer.h"
 #include "ble_service.h"
 #include "rehab_config.h"
+#include "rehab_time.h"
+#include "config.h"
 
 static const char *TAG = "sm";
 
@@ -24,6 +26,15 @@ static fw_state_t   s_state = FW_STATE_OFF;
 static fault_code_t s_fault;
 static uint8_t      s_exercise_id;
 static uint64_t     s_wrong_pos_last_us;
+
+/* When to cut the haptic enable pin after a fault cue. Zero means "already
+ * muted, or no cue was owed". Checked in sm_tick so sm_fault never blocks the
+ * analysis task waiting for a 900 ms pattern to finish. */
+static uint64_t     s_mute_at_us;
+
+/* The rest cue fires once per set, not on every repetition after the trend
+ * crosses the threshold. */
+static bool         s_fatigue_cued;
 
 /* Latest inputs, published by the analysis task before each tick. */
 static emg_features_t s_emg;
@@ -72,11 +83,28 @@ void sm_fault(fault_code_t code, const char *detail)
     s_fault = code;
     ESP_LOGE(TAG, "FAULT %d: %s", code, detail ? detail : "");
 
-    /* Mute first, then change state. A runaway motor is the one thing that
-     * must stop before anything else happens. */
-    haptic_stop();
-    drv2605l_mute();
     session_buffer_end();
+
+    if (fault_warrants_cue(code)) {
+        /* The patient must be TOLD. A lifted electrode or a flat battery is a
+         * fault whose whole point is the warning, and muting first would let
+         * the fault state silence its own cue [PRD §5.2].
+         *
+         * The fault pattern preempts whatever is playing, so it starts
+         * immediately. The enable pin is cut once the cue has finished —
+         * s_mute_at_us is checked by sm_tick rather than slept on here,
+         * because this runs from the analysis task and must not block it. */
+        haptic_play(PATTERN_FAULT);
+        s_mute_at_us = esp_timer_get_time() +
+                       (uint64_t)HAPTIC_MUTE_DELAY_MS * 1000;
+    } else {
+        /* A runaway motor, a dead bus, a watchdog bite: mute first and ask
+         * questions later. Nothing useful can be signalled through an
+         * actuator that may itself be the problem. */
+        haptic_stop();
+        drv2605l_mute();
+        s_mute_at_us = 0;
+    }
 
     const uint8_t payload = (uint8_t)code;
     emit(EVT_FAULT, &payload, 1);
@@ -114,19 +142,43 @@ void sm_request_stop_session(void)
     transition(FW_STATE_STANDBY);
 }
 
-void sm_request_calibration(bool full)
+/* CMD_START_CALIBRATION carries the step to run, so a failed step can be
+ * repeated on its own without restarting the protocol [PRD §5.3]. The step
+ * argument used to be discarded, which made that impossible even though the
+ * host had always sent it. */
+void sm_request_calibration(calib_phase_t step)
 {
     if (s_state != FW_STATE_STANDBY && s_state != FW_STATE_DONNING_CHECK &&
         s_state != FW_STATE_OPERATIONAL) {
         ESP_LOGW(TAG, "calibration refused in state %d", s_state);
         return;
     }
-    if (full) {
-        calibration_begin();
-    } else {
-        calibration_begin_neutral_only();
+
+    switch (step) {
+    case CALIB_STEP_ALL:
+        calibration_begin_all();
+        break;
+    case CALIB_STEP_CONTACT:
+        donning_check_begin();
+        transition(FW_STATE_DONNING_CHECK);
+        return;
+    case CALIB_STEP_REST:
+    case CALIB_STEP_STRAIGHT:
+    case CALIB_STEP_BICEPS:
+    case CALIB_STEP_TRICEPS:
+    case CALIB_STEP_SWEEP:
+        calibration_begin_step(step);
+        break;
+    default:
+        ESP_LOGW(TAG, "unknown calibration step %d", (int)step);
+        return;
     }
     transition(FW_STATE_CALIBRATION);
+}
+
+void sm_request_recalibration(void)
+{
+    sm_request_calibration(CALIB_STEP_ALL);
 }
 
 void sm_request_power_off(void)
@@ -162,14 +214,18 @@ static void tick_donning(uint64_t t_us)
     }
 
     /* Passed. A returning patient with a current profile takes the short
-     * path: recapture the neutral pose and go, rather than repeating the
-     * full 90-second protocol. */
+     * path — steps 1, 2 and 5 only — rather than repeating the maxima.
+     *
+     * The staleness check is given the real epoch. It used to be passed a
+     * literal zero, which made every stored profile read as expired and sent
+     * every patient through the full protocol every single session. */
     calib_record_t stored;
     if (calibration_load_nvs(&stored) == ESP_OK &&
-        !calibration_is_stale(&stored, 0)) {
-        calibration_begin_neutral_only();
+        !calibration_is_stale(&stored, rehab_now_epoch_s())) {
+        ESP_LOGI(TAG, "stored profile is current; session re-zero only");
+        calibration_begin_session_rezero();
     } else {
-        calibration_begin();
+        calibration_begin_all();
     }
     transition(FW_STATE_CALIBRATION);
 }
@@ -197,6 +253,8 @@ static void tick_calibration(uint64_t t_us)
         fusion_set_calibration(rec);
         rep_cycle_set_calibration(rec);
 
+        s_fatigue_cued      = false;
+        s_wrong_pos_last_us = 0;
         rep_cycle_begin_set();
         session_buffer_begin();
         transition(FW_STATE_OPERATIONAL);
@@ -211,15 +269,55 @@ static void tick_operational(uint64_t t_us)
     switch (rt.event) {
 
     case REP_EVT_REP_COMPLETE:
-        /* One haptic per repetition, at the end of the top hold: either the
-         * clean pulse or the compensation pattern, never both. */
-        haptic_play(rt.comp_flags ? PATTERN_REP_COMPENSATED
-                                  : PATTERN_REP_COMPLETE);
+        /* Exactly one haptic per repetition, at the end of the confirming
+         * hold: either the clean click or the three-pulse flagged pattern,
+         * never both [PRD §5.6].
+         *
+         * On the repetition that completes the set, the compound pattern
+         * plays the per-repetition result, a 300 ms gap, then the set-complete
+         * cue — one request, because a single-slot scheduler would drop a
+         * second one. */
+        if (rt.set_complete) {
+            haptic_play(rt.comp_flags ? PATTERN_REP_FLAGGED_THEN_SET
+                                      : PATTERN_REP_CLEAN_THEN_SET);
+        } else {
+            haptic_play(rt.comp_flags ? PATTERN_REP_FLAGGED
+                                      : PATTERN_REP_CLEAN);
+        }
+
         emit(EVT_REP_COMPLETE, &rt.result, sizeof(rt.result) > 16
                                            ? 16 : sizeof(rt.result));
 
-        if (rep_cycle_fatigue_flagged()) {
-            haptic_play(PATTERN_REST_CUE);
+        if (rt.comp_flags & COMP_FLAG_SHOULDER) {
+            emit(EVT_COMPENSATION_SHOULDER, NULL, 0);
+        }
+        if (rt.comp_flags & COMP_FLAG_TRUNK) {
+            emit(EVT_COMPENSATION_TRUNK, NULL, 0);
+        }
+        if (rt.comp_flags & COMP_FLAG_SWING) {
+            emit(EVT_COMPENSATION_SWING, NULL, 0);
+        }
+
+        if (rt.set_complete) {
+            /* Reaching rep_target ends the set [PRD §5.6]. The buffer is
+             * sealed and the device returns to STANDBY for the rest interval;
+             * the host decides when the next set starts. */
+            rep_cycle_end_set();
+            session_buffer_end();
+            emit(EVT_SET_COMPLETE, &rt.rep_count, sizeof(rt.rep_count));
+            ESP_LOGI(TAG, "set complete at %u repetitions", rt.rep_count);
+            transition(FW_STATE_STANDBY);
+            return;
+        }
+
+        /* Fatigue ADVISES, it does not stop the session. The rest cue fires
+         * and the event is reported; whether to act on it is the patient's
+         * and the therapist's decision, not the firmware's. A device that
+         * ended a set on its own reading of a frequency trend would be
+         * overruling the person doing the exercise. */
+        if (rep_cycle_fatigue_flagged() && !s_fatigue_cued) {
+            s_fatigue_cued = true;
+            haptic_play(PATTERN_REST);
             emit(EVT_FATIGUE_WARN, NULL, 0);
         }
         break;
@@ -228,15 +326,38 @@ static void tick_operational(uint64_t t_us)
         emit(EVT_REP_START, NULL, 0);
         break;
 
+    case REP_EVT_PEAK_REACHED:
+        /* Soft click at 80 % of the target angle: "you may begin the return."
+         * Settled from PRD §11.2, which left it open. It shares the tick's
+         * priority, so it is dropped rather than displacing a result cue. */
+        haptic_play(PATTERN_SOFT_CLICK);
+        break;
+
+    case REP_EVT_HOLD_START:
+        emit(EVT_HOLD_START, NULL, 0);
+        break;
+
     case REP_EVT_REP_ABANDONED:
         emit(EVT_REP_ABANDONED, NULL, 0);
         break;
 
-    case REP_EVT_START_POS_BAD:
-        /* Nag every 2.5 s while posture is wrong. The counter stays frozen
-         * until it is corrected. */
+    case REP_EVT_PASSIVE_SWING:
+        /* The arm rose with the agonist quiet. Report it and do not count it;
+         * this is the case the whole device exists to catch [PRD §5.4]. The
+         * patient gets no cue, because there is nothing to confirm — the app
+         * says "use your muscle to lift". */
         if (t_us - s_wrong_pos_last_us > 2500000ULL) {
-            haptic_play(PATTERN_WRONG_START);
+            emit(EVT_PASSIVE_SWING, NULL, 0);
+            s_wrong_pos_last_us = t_us;
+        }
+        break;
+
+    case REP_EVT_START_POS_BAD:
+        /* Posture is wrong and the counter stays frozen until it is
+         * corrected. Reported to the app, which shows what to fix; no haptic,
+         * because a cue that repeats every 2.5 s while a patient is trying to
+         * get into position reads as nagging rather than as information. */
+        if (t_us - s_wrong_pos_last_us > 2500000ULL) {
             emit(EVT_START_POS_BAD, NULL, 0);
             s_wrong_pos_last_us = t_us;
         }
@@ -274,6 +395,14 @@ void sm_tick(uint64_t t_us)
         tick_operational(t_us);
         break;
     case FW_STATE_FAULT:
+        /* The fault cue has had its 900 ms; cut drive now [PRD §5.2]. */
+        if (s_mute_at_us != 0 && t_us >= s_mute_at_us) {
+            haptic_stop();
+            drv2605l_mute();
+            s_mute_at_us = 0;
+            ESP_LOGI(TAG, "fault cue finished; haptics muted");
+        }
+        break;
     case FW_STATE_OFF:
         break;
     }
@@ -281,9 +410,13 @@ void sm_tick(uint64_t t_us)
     status_led_set_link(ble_is_connected());
 }
 
-/* Promoted from BOOT once main() has run the self-tests. */
+/* Promoted from BOOT once main() has run the self-tests.
+ *
+ * No boot cue: the six-pattern vocabulary in PRD §5.6 has no boot pattern, and
+ * the one v0.1 used (two 100 ms pulses) sat in the fault cue's rhythmic
+ * neighbourhood — the same class of collision the PRD records having to fix
+ * once already. The status LED reports a successful boot instead. */
 void sm_selftest_passed(void)
 {
-    haptic_play(PATTERN_BOOT_OK);
     transition(FW_STATE_STANDBY);
 }

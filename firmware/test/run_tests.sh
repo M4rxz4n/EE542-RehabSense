@@ -17,7 +17,8 @@ CFLAGS="-std=c11 -Wall -Wextra -Wno-unused-parameter -Wno-unused-variable
 
 run_rep() {
     echo "=== repetition state machine ==="
-    gcc $CFLAGS test_rep.c "$FW/rep/rep_cycle.c" "$FW/rep/grading.c" -lm -o test_rep
+    gcc $CFLAGS test_rep.c "$FW/rep/rep_cycle.c" "$FW/rep/grading.c" \
+        "$FW/emg/activation.c" -lm -o test_rep
     ./test_rep
 }
 

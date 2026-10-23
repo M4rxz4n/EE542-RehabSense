@@ -11,4 +11,16 @@ typedef int esp_err_t;
 #define ESP_ERR_NOT_FOUND 0x105
 #define ESP_ERR_NOT_SUPPORTED 0x106
 #define ESP_ERR_INVALID_RESPONSE 0x108
+#ifndef ESP_ERR_INVALID_VERSION
+#define ESP_ERR_INVALID_VERSION 0x10A
+#endif
+#ifndef ESP_ERR_INVALID_SIZE
+#define ESP_ERR_INVALID_SIZE 0x104
+#endif
+#ifndef ESP_ERR_INVALID_ARG
+#define ESP_ERR_INVALID_ARG 0x102
+#endif
+#ifndef ESP_ERR_INVALID_STATE
+#define ESP_ERR_INVALID_STATE 0x103
+#endif
 #endif

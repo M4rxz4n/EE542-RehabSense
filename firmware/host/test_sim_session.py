@@ -118,22 +118,30 @@ async def main():
     # feature frame for that same tick already carries the next state, because
     # the cycle advances before features are published — so the state to look
     # at is the one reported on the tick before.
-    counted_in_flexed_hold = 0
+    counted_in_extended_hold = 0
     for rep in col.named("REP_COMPLETE"):
         before = [f for f in col.features if f.t_us < rep.t_us]
-        if before and before[-1].rep_state == int(p.RepState.FLEXED_HOLD):
-            counted_in_flexed_hold += 1
-    check(counted_in_flexed_hold == len(col.named("REP_COMPLETE")),
-          f"all {counted_in_flexed_hold} repetitions counted at the top hold")
+        if before and before[-1].rep_state == int(p.RepState.EXTENDED_HOLD):
+            counted_in_extended_hold += 1
+    check(counted_in_extended_hold == len(col.named("REP_COMPLETE")),
+          f"all {counted_in_extended_hold} repetitions counted on the RETURN, "
+          "at the extended hold")
 
-    # And the tick after a completion is the eccentric, not a fresh rep.
+    # And the tick after a completion is READY: the repetition ended at the
+    # extended position, so the next one starts from there rather than from a
+    # descent that has already happened.
+    # The repetition that completes the set is the exception: reaching
+    # rep_target ends the set, so the device goes to STANDBY rather than
+    # arming another repetition [PRD §5.6].
+    completions = col.named("REP_COMPLETE")
     after_states = []
-    for rep in col.named("REP_COMPLETE"):
+    for rep in completions[:-1]:
         after = [f for f in col.features if f.t_us >= rep.t_us]
         if after:
             after_states.append(after[0].rep_state)
-    check(all(s == int(p.RepState.ECCENTRIC) for s in after_states),
-          "and the cycle moves straight into the eccentric")
+    check(after_states and all(st == int(p.RepState.READY)
+                               for st in after_states),
+          "and the cycle returns to READY for the next repetition")
 
     print("\n[4] the behaviours worth demonstrating all appear")
     for name in ["REP_START", "REP_COMPLETE", "HOLD_START", "HOLD_COMPLETE",
@@ -163,17 +171,21 @@ async def main():
 
     print("\n[7] one haptic per completed repetition, and nothing else lost")
     per_rep = [h for _t, h in dev.haptic_log
-               if h in (p.HapticPattern.REP_COMPLETE,
-                        p.HapticPattern.REP_COMPENSATED)]
+               if h in (p.HapticPattern.REP_CLEAN,
+                        p.HapticPattern.REP_FLAGGED,
+                        p.HapticPattern.REP_CLEAN_THEN_SET,
+                        p.HapticPattern.REP_FLAGGED_THEN_SET)]
     check(len(per_rep) == len(dev.results),
           f"{len(per_rep)} cues for {len(dev.results)} repetitions")
-    compensated = [h for h in per_rep if h == p.HapticPattern.REP_COMPENSATED]
+    compensated = [h for h in per_rep
+                   if h in (p.HapticPattern.REP_FLAGGED,
+                            p.HapticPattern.REP_FLAGGED_THEN_SET)]
     check(len(compensated) == len(flagged),
           "the three-pulse pattern matches the flagged repetitions")
-    check(p.HapticPattern.REST_CUE in [h for _t, h in dev.haptic_log],
+    check(p.HapticPattern.REST in [h for _t, h in dev.haptic_log],
           "the fatigue warning raised the rest cue")
-    check(p.HapticPattern.WRONG_START in [h for _t, h in dev.haptic_log],
-          "a bad start posture was nagged")
+    check(p.HapticPattern.SOFT_CLICK in [h for _t, h in dev.haptic_log],
+          "the soft click fired at 80 % of the target angle")
 
     print("\n[8] the device is authoritative — the host adds nothing")
     # Every score the host reports came from the device, byte for byte.
@@ -263,8 +275,8 @@ async def main():
     await asyncio.sleep(0)
     check(col.bad >= 1, "it is counted as a bad frame")
     await cli.write_gatt_char(p.UUID_CONTROL, p.cmd_haptic_test(
-        p.HapticPattern.BOOT_OK))
-    check(dev.haptic_log[-1][1] == p.HapticPattern.BOOT_OK,
+        p.HapticPattern.TICK))
+    check(dev.haptic_log[-1][1] == p.HapticPattern.TICK,
           "and the control path still works afterwards")
 
 

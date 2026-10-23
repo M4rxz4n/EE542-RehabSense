@@ -25,18 +25,34 @@ UUID_EVENTS = BASE.format(0x0004)
 UUID_STATUS = BASE.format(0x0005)
 UUID_BACKFILL = BASE.format(0x0006)
 UUID_CALIB = BASE.format(0x0007)
+UUID_CONFIG = BASE.format(0x0008)   # serialised TLV, read + notify
 
 DEVICE_NAME = "RehabSense"
 
-EMG_CHANNELS = 2
+#: Phase 1 prototype: ONE MyoWare on the biceps — two electrodes on the muscle
+#: belly plus one reference on the bony elbow landmark, three electrodes in
+#: all. Phase 2's custom PCB adds the triceps, and with it the co-contraction
+#: component of the score.
+#:
+#: Every layout in this file is derived from this number, and rehab_config.h
+#: carries the same constant. If the two disagree, every multi-channel frame
+#: is misread.
+EMG_N_CHANNELS = 1
+
+#: Alias, so the raw-frame code reads naturally.
+EMG_CHANNELS = EMG_N_CHANNELS
 EMG_SAMPLE_RATE_HZ = 2000
 IMU_SAMPLE_RATE_HZ = 100
 FEATURE_RATE_HZ = 50
 
 # Batch sizes and the frame budget, mirroring rehab_config.h.
 FRAME_MAX_BYTES = 180
-BLE_EMG_BATCH = 40        # 40 x 4 B + 14 = 174 B, 50 frames/s
+# Samples per EMG frame. Derived from the channel count so the frame is the
+# same size whichever front end is fitted: 80 samples of one channel and 40 of
+# two both come to 14 + 160 = 174 B. rehab_config.h derives it the same way.
+BLE_EMG_BATCH = 80 // EMG_N_CHANNELS
 BLE_IMU_BATCH = 6         #  6 x 24 B + 14 = 158 B, 16.7 frames/s
+EMG_FRAME_BYTES = 14 + BLE_EMG_BATCH * EMG_N_CHANNELS * 2
 
 
 class FrameType(IntEnum):
@@ -78,6 +94,7 @@ class Event(IntEnum):
     SET_COMPLETE = 0x0E
     FAULT = 0x0F
     STATE_CHANGE = 0x10
+    PASSIVE_SWING = 0x11     # angle rose with the agonist quiet; not counted
 
 
 class FwState(IntEnum):
@@ -91,32 +108,61 @@ class FwState(IntEnum):
 
 
 class RepState(IntEnum):
-    WAIT_START = 0
-    EXTENDED_HOLD = 1
-    CONCENTRIC = 2
-    FLEXED_HOLD = 3
-    ECCENTRIC = 4
+    """rep_cycle.h — PRD §5.4.
+
+    READY -> CONCENTRIC -> PEAK -> ECCENTRIC -> EXTENDED_HOLD -> (counted)
+
+    The count happens on the RETURN, after a confirming hold at the extended
+    position, so the score covers the eccentric phase and the haptic lands at
+    a moment the patient is already stationary.
+    """
+    READY = 0
+    CONCENTRIC = 1
+    PEAK = 2
+    ECCENTRIC = 3
+    EXTENDED_HOLD = 4
 
 
 class CalibPhase(IntEnum):
-    """calibration.h — the four-phase protocol."""
+    """calibration.h — the step protocol of PRD §5.3.
+
+    Carried as the uint8 argument of START_CALIBRATION, so a failed step can
+    be repeated on its own without restarting.
+
+    On the single-channel prototype there is no TRICEPS step: one MyoWare on
+    the biceps has no antagonist to measure.
+    """
     IDLE = 0
-    REST = 1          # 10 s, noise floor per channel
-    MVC = 2           # 3 x 5 s, best of three, for %MVC scaling
-    NEUTRAL = 3       # 5 s, q_upper0 and q_fore0
-    ROM_SWEEP = 4     # 2 slow reps: flexion axis, angle_min, angle_max
-    DONE = 5
-    FAILED = 6
+    CONTACT = 1       # step 0 — donning and contact check
+    REST = 2          # EMG mean and sigma, gyroscope bias
+    STRAIGHT = 3      # comfortable-straight reference pose
+    BICEPS = 4        # agonist maximum, best of three
+    TRICEPS = 5       # antagonist maximum — Phase 2 only
+    SWEEP = 6         # flexion axis, angle_min, angle_max
+    ALL = 7           # run the whole protocol
+    DONE = 8
+    FAILED = 9
 
 
 class HapticPattern(IntEnum):
-    """patterns.h — one motor, five messages, distinguished by rhythm."""
+    """patterns.h — one ERM, seven messages, distinguished by RHYTHM.
+
+    An ERM's vibration frequency is coupled to its amplitude, so "stronger"
+    also means "faster" and cannot carry independent meaning. Every cue plays
+    at one consistent amplitude; the rest ramp and the soft click are the
+    exceptions, and both are a change in CHARACTER rather than a level that
+    carries meaning.
+    """
     NONE = 0
-    REP_COMPLETE = 1       # one 100 ms pulse
-    REP_COMPENSATED = 2    # three 80 ms pulses
-    WRONG_START = 3        # one 300 ms pulse at 50 %
-    REST_CUE = 4           # 1000 ms ramp up then down
-    BOOT_OK = 5            # two 100 ms pulses
+    TICK = 1                 # 40 ms — button acknowledged
+    REP_CLEAN = 2            # one 100 ms click
+    REP_FLAGGED = 3          # three 80 ms pulses, 80 ms gaps
+    SET_COMPLETE = 4         # two 70 ms pulses, then one 500 ms
+    REST = 5                 # 1000 ms ramp up and down
+    FAULT = 6                # two 300 ms pulses, 300 ms apart
+    SOFT_CLICK = 7           # 30 ms, reduced level — 80 % of target angle
+    REP_CLEAN_THEN_SET = 8   # the compound cues for the repetition that
+    REP_FLAGGED_THEN_SET = 9 #   completes the set, with a 300 ms gap
 
 
 class Fault(IntEnum):
@@ -144,7 +190,9 @@ STATUS_FLAG_GAP_OCCURRED = 1 << 1
 
 CALIB_FLAG_MVC_UNRELIABLE = 1 << 0
 CALIB_FLAG_CLINICIAN_OVERRIDE = 1 << 1
-CALIB_RECORD_VERSION = 1
+#: Version 2 adds emg_rest_sd[] and gyro_bias[][], which the activation
+#: detector and the joint angle respectively depend on.
+CALIB_RECORD_VERSION = 2
 
 
 def comp_names(flags: int) -> list[str]:
@@ -179,9 +227,19 @@ assert HEADER.size == 14, "header must be 14 bytes to match the firmware"
 # and wrong compensation flags. Both layouts are accepted here and chosen by
 # body length, so the host keeps working if features_t is later marked packed
 # (which would be the tidier fix, and matches the file's own convention).
-FEATURES_PADDED = struct.Struct("<Q4f2fBxHHH")   # 40 B, what the firmware sends
-FEATURES_PACKED = struct.Struct("<Q4f2fBHHH")    # 39 B, if the struct is packed
-assert FEATURES_PADDED.size == 40 and FEATURES_PACKED.size == 39
+# features_t is NOT packed, and ble_notify_features() memcpy's the whole
+# struct, so this layout must reproduce the compiler's padding exactly.
+#
+#   uint64 t_us | float envelope[N] | float mdf[N] | float angle | float dev
+#   uint8 rep_state | <pad> | uint16 rep_count, comp_flags, sig_flags
+#   uint8 activation_on | <pad to the struct's 8-byte alignment>
+_FEAT_BODY = ("<Q" + "f" * (2 * EMG_N_CHANNELS) + "2f" + "Bx" + "HHH" + "B")
+_FEAT_UNPADDED = struct.calcsize(_FEAT_BODY)
+_FEAT_TAIL = (-_FEAT_UNPADDED) % 8          # trailing pad to alignment 8
+
+FEATURES_PADDED = struct.Struct(_FEAT_BODY + ("x" * _FEAT_TAIL))
+FEATURES_PACKED = struct.Struct(
+    "<Q" + "f" * (2 * EMG_N_CHANNELS) + "2f" + "B" + "HHH" + "B")
 
 
 @dataclass
@@ -211,6 +269,7 @@ class FeatureFrame:
     rep_count: int
     comp_flags: int
     sig_flags: int
+    activation_on: bool = False   # agonist above threshold [PRD §5.4]
 
 
 @dataclass
@@ -278,10 +337,16 @@ def parse(data: bytes):
         else:
             raise ProtocolError(
                 f"feature frame is {len(body)} B, need {FEATURES_PACKED.size}")
-        (_t, e0, e1, m0, m1, ang, dev,
-         rstate, rcount, comp, sig) = fmt.unpack_from(body, 0)
-        return FeatureFrame(seq, t_us, (e0, e1), (m0, m1), ang, dev,
-                            rstate, rcount, comp, sig)
+        v = fmt.unpack_from(body, 0)
+        n = EMG_N_CHANNELS
+        env = v[1:1 + n]
+        mdf = v[1 + n:1 + 2 * n]
+        ang, dev = v[1 + 2 * n], v[2 + 2 * n]
+        rstate, rcount = v[3 + 2 * n], v[4 + 2 * n]
+        comp, sig = v[5 + 2 * n], v[6 + 2 * n]
+        act = bool(v[7 + 2 * n]) if len(v) > 7 + 2 * n else False
+        return FeatureFrame(seq, t_us, env, mdf, ang, dev,
+                            rstate, rcount, comp, sig, act)
 
     if ftype == FrameType.EVENT:
         if len(body) < 2:
@@ -303,8 +368,19 @@ def parse(data: bytes):
 #   battery_mv u16 @4 | signal_quality[2] u8 @6 | seq_oldest u32 @8
 #   seq_newest u32 @12 | clip_count[2] u32 @16 | flags u8 @24 | PAD @25
 #   rep_count u16 @26 | PAD @28..31 | host_time_offset_us i64 @32
-STATUS = struct.Struct("<BBBxH2BIIIIBxH4xq")
-assert STATUS.size == 40
+# device_status_t is __attribute__((packed)) in ble_service.h — no padding at
+# all. The format below therefore has no pad bytes either, and "<" keeps
+# struct in standard-size, unaligned mode to match.
+#
+# This used to carry explicit padding ("<BBBxH2BIIIIBxH4xq", 40 bytes) that
+# the packed C struct does not have, so every field after battery_mv was read
+# from the wrong offset. Nothing caught it because the host tests parse what
+# the host builds; only a real device would have shown it.
+STATUS = struct.Struct("<BBBH" + f"{EMG_N_CHANNELS}B" + "II"
+                       + f"{EMG_N_CHANNELS}I" + "BHq")
+assert STATUS.size == 24 + 5 * EMG_N_CHANNELS, (
+    f"device_status_t is {24 + 5 * EMG_N_CHANNELS} B packed, "
+    f"not {STATUS.size}")
 
 
 @dataclass
@@ -344,38 +420,51 @@ class StatusFrame:
 def parse_status(data: bytes) -> StatusFrame:
     if len(data) < STATUS.size:
         raise ProtocolError(f"status is {len(data)} B, need {STATUS.size}")
-    (fw, fault, bpct, bmv, sq0, sq1, oldest, newest,
-     clip0, clip1, flags, reps, offset) = STATUS.unpack_from(data, 0)
-    return StatusFrame(fw, fault, bpct, bmv, (sq0, sq1), oldest, newest,
-                       (clip0, clip1), flags, reps, offset)
+    v = STATUS.unpack_from(data, 0)
+    n = EMG_N_CHANNELS
+    fw, fault, bpct, bmv = v[0], v[1], v[2], v[3]
+    sq = v[4:4 + n]
+    oldest, newest = v[4 + n], v[5 + n]
+    clip = v[6 + n:6 + 2 * n]
+    flags, reps, offset = v[6 + 2 * n], v[7 + 2 * n], v[8 + 2 * n]
+    return StatusFrame(fw, fault, bpct, bmv, sq, oldest, newest,
+                       clip, flags, reps, offset)
 
 
 def build_status(fw_state=0, fault_code=0, battery_pct=100, battery_mv=4100,
-                 signal_quality=(0, 0), seq_oldest=0, seq_newest=0,
-                 clip_count=(0, 0), flags=0, rep_count=0,
+                 signal_quality=None, seq_oldest=0, seq_newest=0,
+                 clip_count=None, flags=0, rep_count=0,
                  host_time_offset_us=0) -> bytes:
-    return STATUS.pack(fw_state, fault_code, battery_pct, battery_mv,
-                       signal_quality[0], signal_quality[1],
-                       seq_oldest, seq_newest, clip_count[0], clip_count[1],
+    n = EMG_N_CHANNELS
+    sq = tuple(signal_quality or (0,) * n)[:n]
+    cc = tuple(clip_count or (0,) * n)[:n]
+    sq += (0,) * (n - len(sq))
+    cc += (0,) * (n - len(cc))
+    return STATUS.pack(fw_state, fault_code, battery_pct, battery_mv, *sq,
+                       seq_oldest, seq_newest, *cc,
                        flags, rep_count, host_time_offset_us)
 
 
 # ── Calibration record ─────────────────────────────────────────────────
 #
 # calib_record_t, carried whole on the calibration characteristic (read and
-# write). Alignment 4, so it pads to 88 bytes. Writing it is how a clinician
-# -supplied normalisation value supersedes a measured one.
-CALIB = struct.Struct("<II2f2f2f4f4f3fffB3x")
-assert CALIB.size == 88
+# write). NOT packed on the C side, so it pads to a 4-byte boundary; the
+# matching _Static_assert in rehab_types.h pins the same arithmetic. Writing
+# it is how a clinician-supplied normalisation value supersedes a measured
+# one [PRD §5.3].
+CALIB = struct.Struct("<II" + "f" * (4 * EMG_N_CHANNELS + 6 + 8 + 3 + 2)
+                      + "B3x")
 
 
 @dataclass
 class CalibRecord:
     version: int = CALIB_RECORD_VERSION
     timestamp: int = 0
-    emg_rest_rms: tuple[float, ...] = (0.0, 0.0)
-    emg_mvc: tuple[float, ...] = (1.0, 1.0)
-    mdf_baseline: tuple[float, ...] = (0.0, 0.0)
+    emg_rest_rms: tuple[float, ...] = (0.0,) * EMG_N_CHANNELS
+    emg_rest_sd: tuple[float, ...] = (0.0,) * EMG_N_CHANNELS
+    emg_mvc: tuple[float, ...] = (1.0,) * EMG_N_CHANNELS
+    mdf_baseline: tuple[float, ...] = (0.0,) * EMG_N_CHANNELS
+    gyro_bias: tuple[float, ...] = (0.0,) * 6   # [upper xyz][fore xyz]
     q_upper0: tuple[float, ...] = (1.0, 0.0, 0.0, 0.0)
     q_fore0: tuple[float, ...] = (1.0, 0.0, 0.0, 0.0)
     flexion_axis: tuple[float, ...] = (0.0, 0.0, 1.0)
@@ -394,9 +483,10 @@ class CalibRecord:
         return bool(self.flags & CALIB_FLAG_MVC_UNRELIABLE)
 
     def pack(self) -> bytes:
-        return CALIB.pack(self.version, self.timestamp, *self.emg_rest_rms,
-                          *self.emg_mvc, *self.mdf_baseline, *self.q_upper0,
-                          *self.q_fore0, *self.flexion_axis,
+        return CALIB.pack(self.version, self.timestamp,
+                          *self.emg_rest_rms, *self.emg_rest_sd,
+                          *self.emg_mvc, *self.mdf_baseline, *self.gyro_bias,
+                          *self.q_upper0, *self.q_fore0, *self.flexion_axis,
                           self.angle_min, self.angle_max, self.flags)
 
 
@@ -404,10 +494,21 @@ def parse_calib(data: bytes) -> CalibRecord:
     if len(data) < CALIB.size:
         raise ProtocolError(f"calibration record is {len(data)} B, need {CALIB.size}")
     v = CALIB.unpack_from(data, 0)
-    return CalibRecord(version=v[0], timestamp=v[1], emg_rest_rms=v[2:4],
-                       emg_mvc=v[4:6], mdf_baseline=v[6:8], q_upper0=v[8:12],
-                       q_fore0=v[12:16], flexion_axis=v[16:19],
-                       angle_min=v[19], angle_max=v[20], flags=v[21])
+    n = EMG_N_CHANNELS
+    i = 2
+    rest_rms = v[i:i + n];      i += n
+    rest_sd  = v[i:i + n];      i += n
+    mvc      = v[i:i + n];      i += n
+    mdf      = v[i:i + n];      i += n
+    bias     = v[i:i + 6];      i += 6
+    q_up     = v[i:i + 4];      i += 4
+    q_fo     = v[i:i + 4];      i += 4
+    axis     = v[i:i + 3];      i += 3
+    return CalibRecord(version=v[0], timestamp=v[1],
+                       emg_rest_rms=rest_rms, emg_rest_sd=rest_sd,
+                       emg_mvc=mvc, mdf_baseline=mdf, gyro_bias=bias,
+                       q_upper0=q_up, q_fore0=q_fo, flexion_axis=axis,
+                       angle_min=v[i], angle_max=v[i + 1], flags=v[i + 2])
 
 
 # ── Frame builders ─────────────────────────────────────────────────────
@@ -456,13 +557,15 @@ def build_imu(seq: int, t_us: int, samples) -> bytes:
 def build_features(seq: int, t_us: int, envelope, mdf, elbow_angle_deg: float,
                    upper_arm_dev_deg: float, rep_state: int, rep_count: int,
                    comp_flags: int = 0, sig_flags: int = 0,
+                   activation_on: bool = False,
                    padded: bool = True) -> bytes:
     """``padded`` reproduces what the firmware emits today; False is the
     layout a packed features_t would give."""
     fmt = FEATURES_PADDED if padded else FEATURES_PACKED
-    body = fmt.pack(t_us, envelope[0], envelope[1], mdf[0], mdf[1],
+    n = EMG_N_CHANNELS
+    body = fmt.pack(t_us, *tuple(envelope)[:n], *tuple(mdf)[:n],
                     elbow_angle_deg, upper_arm_dev_deg, int(rep_state),
-                    rep_count, comp_flags, sig_flags)
+                    rep_count, comp_flags, sig_flags, int(activation_on))
     return _check_budget(build_header(FrameType.FEATURES, seq, t_us, 1) + body,
                          "feature frame")
 
@@ -550,11 +653,13 @@ def cmd_stop() -> bytes:
     return bytes([Cmd.STOP_SESSION])
 
 
-def cmd_calibrate(phase: int = 0) -> bytes:
-    """Phase 0 runs the full protocol. Naming a phase re-runs just that one,
-    so a rejected step does not cost the whole 90 seconds — a returning
-    patient with a stored profile needs only CalibPhase.NEUTRAL."""
-    return bytes([Cmd.START_CALIBRATION, int(phase) & 0xFF])
+def cmd_calibrate(step: int = CalibPhase.ALL) -> bytes:
+    """CalibPhase.ALL runs the whole protocol. Naming a single step re-runs
+    just that one, so a rejected step does not cost the entire protocol — and
+    the step most likely to be rejected is a maximum contraction on a paretic
+    limb, which is the one a patient least wants to repeat four others to get
+    back to [PRD §5.3]."""
+    return bytes([Cmd.START_CALIBRATION, int(step) & 0xFF])
 
 
 def cmd_abort_calibration() -> bytes:
@@ -565,15 +670,68 @@ def cmd_get_config() -> bytes:
     return bytes([Cmd.GET_CONFIG])
 
 
-def cmd_set_config(tlv: bytes) -> bytes:
-    """CMD_SET_CONFIG carries TLV. The firmware also accepts a whole
-    calib_record_t written to the calibration characteristic, which is how a
-    clinician-supplied normalisation value supersedes a measured one."""
-    return bytes([Cmd.SET_CONFIG]) + tlv
+def cmd_set_config(tlv_block: bytes) -> bytes:
+    """CMD_SET_CONFIG carries a TLV block (see CfgTag).
+
+    A clinician-supplied normalisation value goes a different way: a whole
+    calib_record_t written to the CALIBRATION characteristic. The two used to
+    share this opcode, which would have delivered a calib_record_t to the TLV
+    parser the moment the config path existed."""
+    return bytes([Cmd.SET_CONFIG]) + tlv_block
 
 
 def tlv(tag: int, value: bytes) -> bytes:
     return bytes([tag & 0xFF, len(value) & 0xFF]) + value
+
+
+class CfgTag(IntEnum):
+    """config.h — the runtime parameters of PRD §5.9.1.
+
+    TLV rather than a packed struct, so a newer host can talk to older
+    firmware. An unrecognised tag is SKIPPED; a recognised tag with the wrong
+    length is REJECTED, because a length mismatch means the two sides disagree
+    about what the tag means.
+    """
+    HOLD_MS = 0x01            # uint16, 300..3000
+    HOLD_VEL = 0x02           # float, deg/s
+    REP_TARGET = 0x03         # uint8, 1..50
+    SET_COUNT = 0x04          # uint8
+    REST_SECONDS = 0x05       # uint16
+    TARGET_ANGLE = 0x06       # float, deg
+    START_ANGLE = 0x07        # float, deg
+    FINISH_ANGLE = 0x08       # float, deg
+    TEMPO = 0x09              # float x2: min, max (seconds)
+    COMP_THRESH = 0x0A        # float x3: shoulder, trunk, swing
+    WEIGHTS = 0x0B            # float x5: range,tempo,smooth,cocon,hold
+    DEDUCTIONS = 0x0C         # float x3: shoulder, trunk, swing
+    RAW_STREAM = 0x0D         # uint8
+    CHANNEL_ROLES = 0x0E      # uint8 x2: exercise id, agonist channel
+
+
+def cfg_u8(tag: CfgTag, v: int) -> bytes:
+    return tlv(tag, struct.pack("<B", v & 0xFF))
+
+
+def cfg_u16(tag: CfgTag, v: int) -> bytes:
+    return tlv(tag, struct.pack("<H", v & 0xFFFF))
+
+
+def cfg_f32(tag: CfgTag, *vals: float) -> bytes:
+    return tlv(tag, struct.pack("<" + "f" * len(vals), *vals))
+
+
+def parse_config_tlv(block: bytes) -> dict[int, bytes]:
+    """Split a serialised configuration into {tag: raw value}. Used by the host
+    to read back what GET_CONFIG returned and confirm a write took effect."""
+    out: dict[int, bytes] = {}
+    i = 0
+    while i + 2 <= len(block):
+        tag, length = block[i], block[i + 1]
+        if i + 2 + length > len(block):
+            raise ProtocolError(f"truncated TLV at tag 0x{tag:02X}")
+        out[tag] = bytes(block[i + 2:i + 2 + length])
+        i += 2 + length
+    return out
 
 
 def cmd_recalibrate() -> bytes:

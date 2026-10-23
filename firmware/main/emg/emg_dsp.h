@@ -20,6 +20,7 @@
 typedef struct {
     float    envelope[EMG_N_CHANNELS];   /* %MVC, 0..1+ */
     float    mdf[EMG_N_CHANNELS];        /* Hz; 0 when below activation */
+    float    mains_frac[EMG_N_CHANNELS]; /* power removed by the 60 Hz notch */
     uint32_t clip_count[EMG_N_CHANNELS]; /* cumulative since reset */
     uint16_t sig_flags;
     uint64_t t_us;

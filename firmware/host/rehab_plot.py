@@ -21,11 +21,11 @@ import rehab_protocol as p
 WINDOW_S = 20.0
 
 _STATE_LABEL = {
-    int(p.RepState.WAIT_START): "wait start",
-    int(p.RepState.EXTENDED_HOLD): "extended hold",
+    int(p.RepState.READY): "ready",
     int(p.RepState.CONCENTRIC): "concentric",
-    int(p.RepState.FLEXED_HOLD): "flexed hold",
+    int(p.RepState.PEAK): "peak",
     int(p.RepState.ECCENTRIC): "eccentric",
+    int(p.RepState.EXTENDED_HOLD): "hold (counts here)",
 }
 
 

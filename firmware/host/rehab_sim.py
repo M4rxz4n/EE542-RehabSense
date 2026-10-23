@@ -27,7 +27,7 @@ import math
 import random
 import struct
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 import rehab_protocol as p
 from rehab_grading import Accumulator, DEFAULT_WEIGHTS, RepResult, haptic_for
@@ -38,14 +38,31 @@ TICK_MS = 1000 // TICK_HZ                # 20 ms
 EMG_PER_TICK = p.EMG_SAMPLE_RATE_HZ // TICK_HZ      # 40 — one frame per tick
 IMU_PER_TICK = p.IMU_SAMPLE_RATE_HZ // TICK_HZ      # 2
 
-REP_EXTENDED_BAND_FRAC = 0.10
-REP_FLEXED_BAND_FRAC = 0.85
+# Repetition geometry [PRD §5.4]. Thresholds are angles against the
+# therapist's target, not fractions of measured ROM: the therapist prescribes
+# what the patient SHOULD reach, which is not what they currently can.
+REP_TARGET_ANGLE_DEG = 110.0
+REP_PEAK_FRAC = 0.80            # "target reached" at 80 % of target
+REP_START_ANGLE_DEG = 15.0
+REP_FINISH_ANGLE_DEG = 10.0
+REP_TARGET_DEFAULT = 20
+SET_COUNT_DEFAULT = 3
+REST_SECONDS_DEFAULT = 60
+
+# Activation detector [PRD §5.4].
+ACT_ON_SIGMA = 3.0
+ACT_OFF_SIGMA = 2.0
+ACT_ON_CONFIRM_MS = 50
+ACT_OFF_CONFIRM_MS = 100
+ACT_MIN_THRESH = 0.02
+EMG_NOISE_FLOOR_MULT = 1.5
+
 REP_HOLD_MS = 1000
 REP_PHASE_TIMEOUT_MS = 10000
 REP_HOLD_MAX_VEL_DPS = 15.0
 START_POS_UPPER_ARM_TOL_DEG = 15.0
 
-COMP_SHOULDER_HIKE_DEG = 15.0
+COMP_SHOULDER_HIKE_DEG = 20.0   # [PRD §5.5]
 COMP_TRUNK_LEAN_DEG = 10.0
 COMP_ARM_SWING_DPS = 30.0
 COMP_ARM_SWING_SUSTAIN_MS = 200
@@ -55,10 +72,72 @@ FATIGUE_MDF_SLOPE_THRESH = -0.5          # Hz per repetition
 FATIGUE_CONSEC_REPS = 3
 MDF_MIN_ACTIVATION = 0.15
 
-CALIB_REST_MS = 10000
-CALIB_MVC_HOLD_MS = 5000
+# Calibration [PRD §5.3]: five steps on the single-channel prototype
+# (the triceps maximum needs a second channel), ~16 s of capture.
+CALIB_REST_MS = 5000
+CALIB_STRAIGHT_MS = 2000
+CALIB_MVC_MS = 3000
 CALIB_MVC_ATTEMPTS = 3
-CALIB_NEUTRAL_MS = 5000
+CALIB_SWEEP_MS = 6000
+
+
+class _Activation:
+    """Mirror of activation.c — muscle-on detection with hysteresis.
+
+    A single-threshold detector chatters at the boundary, and chatter on this
+    signal means repetitions starting and abandoning at random. The asymmetric
+    confirmation windows (fast on, slow off) are what make the gate usable.
+    """
+
+    def __init__(self, calib, channel: int) -> None:
+        rest = calib.emg_rest_rms[channel]
+        sd = calib.emg_rest_sd[channel]
+        mvc = calib.emg_mvc[channel]
+
+        # The envelope has already been normalised: zeroed below rest x MULT,
+        # then scaled so the maximum reads 1.0. Raw thresholds must go through
+        # the same transform or they land somewhere else entirely.
+        floor_v = rest * EMG_NOISE_FLOOR_MULT
+        denom = mvc - floor_v
+
+        if denom > 1e-9 and sd > 0.0:
+            self.on_thresh = (rest + ACT_ON_SIGMA * sd - floor_v) / denom
+            self.off_thresh = (rest + ACT_OFF_SIGMA * sd - floor_v) / denom
+            if self.on_thresh < ACT_MIN_THRESH:
+                self.on_thresh = ACT_MIN_THRESH
+                self.off_thresh = ACT_MIN_THRESH * 0.66
+        else:
+            self.on_thresh = 0.10
+            self.off_thresh = 0.066
+
+        self.off_thresh = min(self.off_thresh, self.on_thresh)
+        self._on_needed = max(1, -(-ACT_ON_CONFIRM_MS * TICK_HZ // 1000))
+        self._off_needed = max(1, -(-ACT_OFF_CONFIRM_MS * TICK_HZ // 1000))
+        self.reset()
+
+    def reset(self) -> None:
+        self.on = False
+        self._on_ticks = 0
+        self._off_ticks = 0
+
+    def update(self, envelope: float) -> bool:
+        if not self.on:
+            if envelope > self.on_thresh:
+                self._on_ticks += 1
+                if self._on_ticks >= self._on_needed:
+                    self.on = True
+                    self._off_ticks = 0
+            else:
+                self._on_ticks = 0
+        else:
+            if envelope < self.off_thresh:
+                self._off_ticks += 1
+                if self._off_ticks >= self._off_needed:
+                    self.on = False
+                    self._on_ticks = 0
+            else:
+                self._off_ticks = 0
+        return self.on
 
 
 # ── Scenario ───────────────────────────────────────────────────────────
@@ -97,6 +176,12 @@ class Profile:
     fatigue_onset_rep: int = 6
     battery_start_pct: int = 92
     rest_envelope: float = 0.03         # %MVC at rest
+
+    #: The therapist's prescription for THIS patient. A default of 110 deg is
+    #: the PRD's starting figure for a healthy volunteer; a patient whose own
+    #: maximum is 100 deg would never clear 80 % of it, which is exactly why
+    #: the target is therapist-set and host-configurable [PRD §5.9.1].
+    target_angle: float = 100.0
     plans: list[RepPlan] = field(default_factory=list)
 
 
@@ -237,10 +322,13 @@ class SimulatedDevice:
         self.rng = random.Random(self.profile.seed)
         self.client: LoopbackClient | None = None
 
+        n = p.EMG_N_CHANNELS
         self.calib = p.CalibRecord(
             version=p.CALIB_RECORD_VERSION, timestamp=int(time.time()),
-            emg_rest_rms=(0.004, 0.004), emg_mvc=(1.0, 1.0),
-            mdf_baseline=(self.profile.mdf_baseline, self.profile.mdf_baseline),
+            emg_rest_rms=(0.004,) * n,
+            emg_rest_sd=(0.0008,) * n,
+            emg_mvc=(1.0,) * n,
+            mdf_baseline=(self.profile.mdf_baseline,) * n,
             angle_min=self.profile.angle_min, angle_max=self.profile.angle_max,
             flags=p.CALIB_FLAG_MVC_UNRELIABLE if self.profile.mvc_unreliable else 0)
 
@@ -250,7 +338,7 @@ class SimulatedDevice:
         self.running = False
         self.host_time_offset_us = 0
 
-        self.rep_state = p.RepState.WAIT_START
+        self.rep_state = p.RepState.READY
         self.rep_count = 0
         self.total_reps = 0
         self._hold_ms = 0
@@ -260,6 +348,24 @@ class SimulatedDevice:
         self._comp_confirm = {p.COMP_SHOULDER: 0, p.COMP_TRUNK: 0, p.COMP_SWING: 0}
         self._swing_ms = 0
         self._start_pos_ok: bool | None = None
+        self._start_pos_bad = False
+        self._passive_last_ms = -10_000
+        self._rep_start_us = 0
+        self._set_complete_fired = False
+
+        # Runtime configuration [PRD §5.9.1]. Defaults here, overridable by
+        # SET_CONFIG exactly as on the device.
+        self.weights = DEFAULT_WEIGHTS
+        self.cfg_hold_ms = REP_HOLD_MS
+        self.cfg_hold_velocity = REP_HOLD_MAX_VEL_DPS
+        self.cfg_rep_target = REP_TARGET_DEFAULT
+        self.cfg_set_count = SET_COUNT_DEFAULT
+        self.cfg_rest_seconds = REST_SECONDS_DEFAULT
+        self.cfg_target_angle = self.profile.target_angle
+        self.cfg_start_angle = REP_START_ANGLE_DEG
+        self.cfg_finish_angle = REP_FINISH_ANGLE_DEG
+        self.cfg_raw_stream = 1
+        self._activation = _Activation(self.calib, 0)
 
         self.angle = self.profile.angle_min + 2.0
         self.velocity = 0.0
@@ -269,7 +375,8 @@ class SimulatedDevice:
         self.trunk_dev = 0.0
         self.sig_flags = (p.SIG_MVC_UNRELIABLE if self.profile.mvc_unreliable else 0)
         self.battery_pct = float(self.profile.battery_start_pct)
-        self.clip_count = [0, 0]
+        self.clip_count = [0] * p.EMG_N_CHANNELS
+        self._emg_pending: list[tuple[float, ...]] = []
 
         self._plan_i = 0
         self._plan: RepPlan | None = None
@@ -344,7 +451,7 @@ class SimulatedDevice:
             self._set_state(p.FwState.STANDBY)
         elif op == p.Cmd.REQUEST_RECALIBRATION:
             self._calib_task = asyncio.ensure_future(
-                self._run_calibration(int(p.CalibPhase.NEUTRAL)))
+                self._run_calibration(int(p.CalibPhase.ALL)))
         elif op == p.Cmd.ACK_SEQ:
             if len(payload) >= 4:
                 seq = struct.unpack("<I", payload[:4])[0]
@@ -365,12 +472,91 @@ class SimulatedDevice:
                 # Recorded and reported; the sampling clock is never retimed,
                 # because that would corrupt the spectral estimate.
                 self.host_time_offset_us = self.t_us - host_us
+        elif op == p.Cmd.SET_CONFIG:
+            self._apply_config(payload)
         elif op == p.Cmd.GET_CONFIG:
-            self._notify(p.UUID_STATUS, self.status_bytes())
+            self._notify(p.UUID_CONFIG, self.config_bytes())
         elif op == p.Cmd.POWER_OFF:
             self.end_set()
             self._set_state(p.FwState.OFF)
             self.running = False
+
+    # ── runtime configuration [PRD §5.9.1] ────────────────────────────
+
+    def config_bytes(self) -> bytes:
+        """config_serialise(). What GET_CONFIG returns, and how the host
+        confirms a SET_CONFIG took effect."""
+        w = self.weights
+        return (p.cfg_u16(p.CfgTag.HOLD_MS, self.cfg_hold_ms) +
+                p.cfg_f32(p.CfgTag.HOLD_VEL, self.cfg_hold_velocity) +
+                p.cfg_u8(p.CfgTag.REP_TARGET, self.cfg_rep_target) +
+                p.cfg_u8(p.CfgTag.SET_COUNT, self.cfg_set_count) +
+                p.cfg_u16(p.CfgTag.REST_SECONDS, self.cfg_rest_seconds) +
+                p.cfg_f32(p.CfgTag.TARGET_ANGLE, self.cfg_target_angle) +
+                p.cfg_f32(p.CfgTag.START_ANGLE, self.cfg_start_angle) +
+                p.cfg_f32(p.CfgTag.FINISH_ANGLE, self.cfg_finish_angle) +
+                p.cfg_f32(p.CfgTag.TEMPO, w.tempo_min_s, w.tempo_max_s) +
+                p.cfg_f32(p.CfgTag.COMP_THRESH, COMP_SHOULDER_HIKE_DEG,
+                          COMP_TRUNK_LEAN_DEG, COMP_ARM_SWING_DPS) +
+                p.cfg_f32(p.CfgTag.WEIGHTS, w.w_range, w.w_tempo,
+                          w.w_smoothness, w.w_cocontraction, w.w_hold_steady) +
+                p.cfg_f32(p.CfgTag.DEDUCTIONS, w.p_shoulder, w.p_trunk,
+                          w.p_swing) +
+                p.cfg_u8(p.CfgTag.RAW_STREAM, self.cfg_raw_stream) +
+                p.cfg_u8(p.CfgTag.CHANNEL_ROLES, 0) + bytes([0]))
+
+    def _apply_config(self, payload: bytes) -> None:
+        """config_apply_tlv(). Values are clamped to the ranges the device can
+        honour: a configuration that cannot produce a countable repetition is
+        worse than a rejected write, because it shows up as a device that has
+        stopped counting rather than as an error."""
+        try:
+            tags = p.parse_config_tlv(payload)
+        except p.ProtocolError:
+            return
+
+        def f32(tag, n=1):
+            raw = tags.get(tag)
+            if raw is None or len(raw) != 4 * n:
+                return None
+            return struct.unpack("<" + "f" * n, raw)
+
+        if (v := tags.get(p.CfgTag.HOLD_MS)) and len(v) == 2:
+            self.cfg_hold_ms = min(3000, max(300, struct.unpack("<H", v)[0]))
+        if (v := f32(p.CfgTag.HOLD_VEL)):
+            self.cfg_hold_velocity = min(90.0, max(1.0, v[0]))
+        if (v := tags.get(p.CfgTag.REP_TARGET)) and len(v) == 1:
+            self.cfg_rep_target = min(50, max(1, v[0]))
+        if (v := tags.get(p.CfgTag.SET_COUNT)) and len(v) == 1:
+            self.cfg_set_count = min(20, max(1, v[0]))
+        if (v := tags.get(p.CfgTag.REST_SECONDS)) and len(v) == 2:
+            self.cfg_rest_seconds = min(600, struct.unpack("<H", v)[0])
+        if (v := f32(p.CfgTag.TARGET_ANGLE)):
+            self.cfg_target_angle = min(160.0, max(20.0, v[0]))
+        if (v := f32(p.CfgTag.START_ANGLE)):
+            self.cfg_start_angle = min(90.0, max(0.0, v[0]))
+        if (v := f32(p.CfgTag.FINISH_ANGLE)):
+            self.cfg_finish_angle = min(90.0, max(0.0, v[0]))
+        if (v := tags.get(p.CfgTag.RAW_STREAM)) and len(v) == 1:
+            self.cfg_raw_stream = 1 if v[0] else 0
+
+        w = replace(self.weights)
+        if (v := f32(p.CfgTag.TEMPO, 2)):
+            w = replace(w, tempo_min_s=v[0], tempo_max_s=max(v[0] + 0.5, v[1]))
+        if (v := f32(p.CfgTag.WEIGHTS, 5)):
+            w = replace(w, w_range=v[0], w_tempo=v[1], w_smoothness=v[2],
+                        w_cocontraction=v[3], w_hold_steady=v[4])
+        if (v := f32(p.CfgTag.DEDUCTIONS, 3)):
+            w = replace(w, p_shoulder=v[0], p_trunk=v[1], p_swing=v[2])
+        self.weights = w
+
+        # The finish threshold must sit below the start threshold, or the
+        # cycle has no hysteresis and chatters between READY and CONCENTRIC.
+        if self.cfg_finish_angle >= self.cfg_start_angle:
+            self.cfg_finish_angle = max(0.0, self.cfg_start_angle - 5.0)
+
+        # Read back, exactly as the device does.
+        self._notify(p.UUID_CONFIG, self.config_bytes())
 
     def on_calib_write(self, data: bytes) -> None:
         """A clinician-supplied record supersedes the measured one."""
@@ -397,17 +583,38 @@ class SimulatedDevice:
 
     # ── calibration ───────────────────────────────────────────────────
 
-    async def _run_calibration(self, phase: int) -> None:
-        """The four-phase protocol, or one phase of it. A returning patient
-        with a stored profile takes the neutral-only path."""
+    #: Capture time per step [PRD §5.3]. The triceps maximum only exists when
+    #: a second channel does.
+    _STEP_MS = {
+        p.CalibPhase.CONTACT: 4000,
+        p.CalibPhase.REST: CALIB_REST_MS,
+        p.CalibPhase.STRAIGHT: CALIB_STRAIGHT_MS,
+        p.CalibPhase.BICEPS: CALIB_MVC_MS * CALIB_MVC_ATTEMPTS,
+        p.CalibPhase.TRICEPS: CALIB_MVC_MS * CALIB_MVC_ATTEMPTS,
+        p.CalibPhase.SWEEP: CALIB_SWEEP_MS,
+    }
+
+    async def _run_calibration(self, step: int) -> None:
+        """One step, or the whole protocol.
+
+        Steps are individually commanded so a failed one can be repeated on
+        its own: the step most likely to fail is a maximum contraction on a
+        paretic limb, which is also the one a patient least wants to repeat
+        four others to get back to."""
         self._set_state(p.FwState.CALIBRATION)
-        if phase == int(p.CalibPhase.NEUTRAL):
-            steps = [(p.CalibPhase.NEUTRAL, CALIB_NEUTRAL_MS)]
+
+        if step == int(p.CalibPhase.ALL):
+            order = [p.CalibPhase.REST, p.CalibPhase.STRAIGHT,
+                     p.CalibPhase.BICEPS]
+            if p.EMG_N_CHANNELS > 1:
+                order.append(p.CalibPhase.TRICEPS)
+            order.append(p.CalibPhase.SWEEP)
+            steps = [(ph, self._STEP_MS[ph]) for ph in order]
+        elif step in self._STEP_MS:
+            steps = [(p.CalibPhase(step), self._STEP_MS[p.CalibPhase(step)])]
         else:
-            steps = [(p.CalibPhase.REST, CALIB_REST_MS),
-                     (p.CalibPhase.MVC, CALIB_MVC_HOLD_MS * CALIB_MVC_ATTEMPTS),
-                     (p.CalibPhase.NEUTRAL, CALIB_NEUTRAL_MS),
-                     (p.CalibPhase.ROM_SWEEP, 12000)]
+            self._set_state(p.FwState.STANDBY)
+            return
         try:
             for ph, ms in steps:
                 for pct in (0, 25, 50, 75, 100):
@@ -419,14 +626,13 @@ class SimulatedDevice:
             self._set_state(p.FwState.STANDBY)
             raise
         self.calib.timestamp = int(time.time())
-        self._haptic(p.HapticPattern.BOOT_OK)
         self._set_state(p.FwState.STANDBY)
 
     # ── set control ───────────────────────────────────────────────────
 
     def begin_set(self) -> None:
         self.rep_count = 0
-        self.rep_state = p.RepState.WAIT_START
+        self.rep_state = p.RepState.READY
         self._plan_i = 0
         self._plan = None
         self._fatigue_streak = 0
@@ -568,13 +774,15 @@ class SimulatedDevice:
     # ── repetition cycle (rep_cycle.h) ────────────────────────────────
 
     def _bands(self) -> tuple[float, float]:
-        rom = self.calib.rom
-        return (self.calib.angle_min + REP_EXTENDED_BAND_FRAC * rom,
-                self.calib.angle_min + REP_FLEXED_BAND_FRAC * rom)
+        """The extended and peak thresholds, as angles against the therapist's
+        target rather than fractions of measured ROM [PRD §5.4]."""
+        return (self.calib.angle_min + self.cfg_finish_angle,
+                self.calib.angle_min + self.cfg_target_angle * REP_PEAK_FRAC)
 
     def _detect_compensation(self) -> int:
-        """Evaluated during CONCENTRIC and ECCENTRIC only, and latched for the
-        repetition: feedback arrives at the top hold, not mid-movement."""
+        """Evaluated during the moving phases only, and latched for the
+        repetition: feedback arrives at the confirming hold, not
+        mid-movement."""
         flags = 0
         confirm_ticks = max(1, COMP_CONFIRM_MS // TICK_MS)
 
@@ -602,95 +810,119 @@ class SimulatedDevice:
         still = abs(self.velocity) <= REP_HOLD_MAX_VEL_DPS
         self._phase_ms += TICK_MS
 
-        if self.rep_state == p.RepState.WAIT_START:
-            # Start-position gate: the counter stays frozen until the upper arm
-            # is where the protocol assumes it is.
-            ok = self.upper_arm_dev <= START_POS_UPPER_ARM_TOL_DEG
-            if ok != self._start_pos_ok:
-                self._start_pos_ok = ok
-                self._event(p.Event.START_POS_OK if ok else p.Event.START_POS_BAD,
-                            bytes([int(min(255, self.upper_arm_dev))]))
-                if not ok:
-                    self._haptic(p.HapticPattern.WRONG_START)
-            if ok and in_extended and still:
-                self.rep_state = p.RepState.EXTENDED_HOLD
-                self._hold_ms = 0
-                self._phase_ms = 0
-                self._event(p.Event.HOLD_START, bytes([int(self.rep_state)]))
+        # Thresholds are angles against the therapist's target, not fractions
+        # of measured ROM [PRD §5.4].
+        start_th = self.calib.angle_min + self.cfg_start_angle
+        finish_th = self.calib.angle_min + self.cfg_finish_angle
+        peak_th = self.calib.angle_min + self.cfg_target_angle * REP_PEAK_FRAC
 
-        elif self.rep_state == p.RepState.EXTENDED_HOLD:
-            # A hold means stationary, not merely inside the band.
-            if in_extended and still:
-                self._hold_ms += TICK_MS
-            else:
-                self._hold_ms = 0
-                if not in_extended:
-                    self.rep_state = p.RepState.WAIT_START
-            if self._acc is not None:
-                self._acc.hold(self.angle)
-            if self._hold_ms >= REP_HOLD_MS:
-                self.rep_state = p.RepState.CONCENTRIC
-                self._phase_ms = 0
-                self._acc = Accumulator(self.calib.angle_min, self.calib.angle_max)
-                self._acc.inp.t_start_us = self.t_us
-                self._comp_latched = 0
-                self._swing_ms = 0
-                self._event(p.Event.REP_START)
+        # The activation gate. Posture alone is satisfied by an arm somebody
+        # else is moving, which is the case this device exists to catch.
+        act = self._activation.update(self.envelope[0])
 
-        elif self.rep_state == p.RepState.CONCENTRIC:
-            self._acc.movement(self.angle, self.velocity, *self.envelope)
-            self._comp_latched |= self._detect_compensation()
-            if in_flexed and still:
-                self.rep_state = p.RepState.FLEXED_HOLD
-                self._hold_ms = 0
-                self._phase_ms = 0
-                self._event(p.Event.HOLD_START, bytes([int(self.rep_state)]))
-            elif self._phase_ms >= REP_PHASE_TIMEOUT_MS:
-                self._abandon()
-
-        elif self.rep_state == p.RepState.FLEXED_HOLD:
-            if in_flexed and still:
-                self._hold_ms += TICK_MS
-                self._acc.hold(self.angle)
-            else:
-                self._hold_ms = 0
-                if not in_flexed:
+        if self.rep_state == p.RepState.READY:
+            if self.angle <= start_th:
+                if self._start_pos_ok is not True:
+                    self._start_pos_ok = True
+                    self._start_pos_bad = False
+                    self._event(p.Event.START_POS_OK,
+                                bytes([int(min(255, self.upper_arm_dev))]))
+            elif self.angle > start_th:
+                if not act:
+                    # Rising with the agonist quiet: a passive swing. Reported,
+                    # never counted, and it does not arm anything.
+                    if self._phase_ms - self._passive_last_ms > 2500:
+                        self._passive_last_ms = self._phase_ms
+                        self._event(p.Event.PASSIVE_SWING)
+                elif self.upper_arm_dev > START_POS_UPPER_ARM_TOL_DEG:
+                    if not self._start_pos_bad:
+                        self._start_pos_bad = True
+                        self._start_pos_ok = False
+                        self._event(p.Event.START_POS_BAD,
+                                    bytes([int(min(255, self.upper_arm_dev))]))
+                else:
+                    self._start_pos_bad = False
                     self.rep_state = p.RepState.CONCENTRIC
                     self._phase_ms = 0
-            if self._hold_ms >= REP_HOLD_MS:
-                self._complete_rep()
+                    self._acc = Accumulator(self.calib.angle_min,
+                                            self.cfg_target_angle)
+                    self._acc.inp.t_start_us = self.t_us
+                    self._rep_start_us = self.t_us
+                    self._comp_latched = 0
+                    self._swing_ms = 0
+                    self._event(p.Event.REP_START)
+
+        elif self.rep_state == p.RepState.CONCENTRIC:
+            self._acc.movement(self.angle, self.velocity, self.envelope[0],
+                               self.envelope[-1], agonist_active=act)
+            self._comp_latched |= self._detect_compensation()
+            if self.angle >= peak_th:
+                self.rep_state = p.RepState.PEAK
+                self._phase_ms = 0
+                # Soft click at 80 % of target: "you may begin the return."
+                self._haptic(p.HapticPattern.SOFT_CLICK)
+            elif self.angle < finish_th or self._phase_ms >= REP_PHASE_TIMEOUT_MS:
+                self._abandon()
+
+        elif self.rep_state == p.RepState.PEAK:
+            self._acc.movement(self.angle, self.velocity, self.envelope[0],
+                               self.envelope[-1], agonist_active=act)
+            self._comp_latched |= self._detect_compensation()
+            if self.velocity < 0.0:
+                self.rep_state = p.RepState.ECCENTRIC
+                self._phase_ms = 0
+            elif self._phase_ms >= REP_PHASE_TIMEOUT_MS:
+                self._abandon()
 
         elif self.rep_state == p.RepState.ECCENTRIC:
-            if self._acc is not None:
-                self._acc.movement(self.angle, self.velocity, *self.envelope)
-                self._comp_latched |= self._detect_compensation()
-            if in_extended:
+            self._acc.movement(self.angle, self.velocity, self.envelope[0],
+                               self.envelope[-1], agonist_active=act)
+            self._comp_latched |= self._detect_compensation()
+            if self.angle <= finish_th:
+                # Tempo runs start threshold to finish threshold and excludes
+                # the confirming hold.
+                self._acc.tempo((self.t_us - self._rep_start_us) / 1e6)
                 self.rep_state = p.RepState.EXTENDED_HOLD
                 self._hold_ms = 0
                 self._phase_ms = 0
-                self._acc = None
                 self._event(p.Event.HOLD_START, bytes([int(self.rep_state)]))
             elif self._phase_ms >= REP_PHASE_TIMEOUT_MS:
                 self._abandon()
+
+        elif self.rep_state == p.RepState.EXTENDED_HOLD:
+            if self.angle > start_th:
+                # Started the next curl before the hold completed.
+                self._abandon()
+            elif abs(self.velocity) <= self.cfg_hold_velocity:
+                self._hold_ms += TICK_MS
+                if self._acc is not None:
+                    self._acc.hold(self.angle)
+                if self._hold_ms >= self.cfg_hold_ms:
+                    self._complete_rep()
+            else:
+                # Inside the band but still moving: the hold has not begun.
+                self._hold_ms = 0
+                if self._phase_ms >= REP_PHASE_TIMEOUT_MS:
+                    self._abandon()
 
     def _abandon(self) -> None:
         self._event(p.Event.REP_ABANDONED,
                     struct.pack("<Hh", self.rep_count + 1,
                                 int(self.angle * 10)))
-        self.rep_state = p.RepState.WAIT_START
+        self.rep_state = p.RepState.READY
         self._acc = None
         self._hold_ms = 0
         self._phase_ms = 0
 
     def _complete_rep(self) -> None:
-        """The repetition is counted at the end of the top hold, and that is
-        also when the haptic fires — a moment the patient is already stationary
-        and expecting it."""
+        """Counted at the end of the confirming hold at the EXTENDED position
+        [PRD §5.4] — a moment the patient is already stationary and expecting
+        it, which is what lets the haptic be scheduled rather than reactive."""
         self.rep_count += 1
         self.total_reps += 1
         self._acc.compensation(self._comp_latched)
         self._acc.inp.t_end_us = self.t_us
-        result = self._acc.result(self.rep_count, DEFAULT_WEIGHTS)
+        result = self._acc.result(self.rep_count, self.weights)
         self.results.append(result)
 
         self._event(p.Event.REP_COMPLETE, result.to_event_payload())
@@ -699,18 +931,42 @@ class SimulatedDevice:
                           (p.COMP_SWING, p.Event.COMPENSATION_SWING)):
             if result.comp_flags & flag:
                 self._event(evt, struct.pack("<H", self.rep_count))
-        self._event(p.Event.HOLD_COMPLETE, bytes([int(p.RepState.FLEXED_HOLD)]))
-        self._haptic(haptic_for(result))
+        self._event(p.Event.HOLD_COMPLETE,
+                    bytes([int(p.RepState.EXTENDED_HOLD)]))
+
+        # Reaching rep_target ends the set [PRD §5.6]. The compound cue plays
+        # the per-repetition result, a 300 ms gap, then set-complete — one
+        # request, because a single-slot scheduler would drop a second one.
+        set_done = (self.cfg_rep_target > 0
+                    and self.rep_count >= self.cfg_rep_target
+                    and not self._set_complete_fired)
+
+        if set_done:
+            self._set_complete_fired = True
+            self._haptic(p.HapticPattern.REP_FLAGGED_THEN_SET
+                         if result.comp_flags
+                         else p.HapticPattern.REP_CLEAN_THEN_SET)
+        else:
+            self._haptic(haptic_for(result))
 
         self._check_fatigue()
 
-        self.rep_state = p.RepState.ECCENTRIC
+        if set_done:
+            self._event(p.Event.SET_COMPLETE,
+                        struct.pack("<H", self.rep_count))
+            self.end_set()
+            return
+
+        self.rep_state = p.RepState.READY
         self._phase_ms = 0
         self._hold_ms = 0
 
     def _check_fatigue(self) -> None:
-        """Median frequency tracked as a regression across the set. The device
-        reports the condition; whether it ends the set is a host decision."""
+        """Median frequency tracked as a regression across the set.
+
+        Fatigue ADVISES; it does not end the set. The rest cue fires and the
+        event is reported, and what to do about it is the patient's and the
+        therapist's decision, not the device's."""
         mdf = max(self.mdf)
         if mdf <= 0.0:
             return
@@ -731,7 +987,7 @@ class SimulatedDevice:
             self.fatigue_flagged = True
             self._event(p.Event.FATIGUE_WARN,
                         struct.pack("<hH", int(slope * 100), self.rep_count))
-            self._haptic(p.HapticPattern.REST_CUE)
+            self._haptic(p.HapticPattern.REST)
 
     # ── raw synthesis and transmit ────────────────────────────────────
 
@@ -751,10 +1007,20 @@ class SimulatedDevice:
                 vals.append(v)
             samples.append(tuple(vals))
 
-        frame = p.build_emg(self._emg_seq, self.t_us, samples)
-        self._store[self._emg_seq] = frame
-        self._notify(p.UUID_RAW, frame)
-        self._emg_seq += EMG_PER_TICK
+        # A tick produces EMG_PER_TICK samples; a frame carries
+        # BLE_EMG_BATCH of them, and the two need not be equal — on one
+        # channel a frame holds two ticks' worth, because each sample is half
+        # the size and the 180 B budget is the thing being filled. The
+        # firmware does the same: the ADC lands fixed-size DMA buffers and
+        # ble_tx packs frames from them.
+        self._emg_pending.extend(samples)
+        while len(self._emg_pending) >= p.BLE_EMG_BATCH:
+            batch = self._emg_pending[:p.BLE_EMG_BATCH]
+            del self._emg_pending[:p.BLE_EMG_BATCH]
+            frame = p.build_emg(self._emg_seq, self.t_us, batch)
+            self._store[self._emg_seq] = frame
+            self._notify(p.UUID_RAW, frame)
+            self._emg_seq += p.BLE_EMG_BATCH
 
         for _ in range(IMU_PER_TICK):
             ang = math.radians(self.angle)

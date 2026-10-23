@@ -22,6 +22,7 @@
 #include "services/gatt/ble_svc_gatt.h"
 
 #include "ble_service.h"
+#include "config.h"
 #include "rehab_config.h"
 
 static const char *TAG = "ble";
@@ -40,12 +41,16 @@ static const ble_uuid128_t UUID_EVENTS   = REHAB_UUID(0x0004);
 static const ble_uuid128_t UUID_STATUS   = REHAB_UUID(0x0005);
 static const ble_uuid128_t UUID_BACKFILL = REHAB_UUID(0x0006);
 static const ble_uuid128_t UUID_CALIB    = REHAB_UUID(0x0007);
+static const ble_uuid128_t UUID_CONFIG   = REHAB_UUID(0x0008);
 
 static uint16_t s_conn   = BLE_HS_CONN_HANDLE_NONE;
 static uint16_t s_h_raw, s_h_events, s_h_status, s_h_backfill;
 static ble_command_cb_t s_on_command;
 static device_status_t  s_status;
 static calib_record_t   s_calib_mirror;
+static uint8_t          s_config_mirror[CFG_TLV_MAX_BYTES];
+static size_t           s_config_len;
+static uint16_t         s_config_handle;
 static uint8_t          s_own_addr_type;
 static uint8_t          s_txbuf[BLE_FRAME_MAX_BYTES];
 
@@ -93,10 +98,23 @@ static int gatt_access(uint16_t conn, uint16_t attr,
                 return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
             }
             if (s_on_command) {
-                s_on_command(CMD_SET_CONFIG, (uint8_t *)&s_calib_mirror, len);
+                /* A calibration-record write is NOT a SET_CONFIG. The two
+                 * carry different payloads and used to share this opcode,
+                 * which would have delivered a calib_record_t to the TLV
+                 * parser the moment the config path existed. */
+                s_on_command(CMD_INTERNAL_CALIB_WRITE,
+                             (uint8_t *)&s_calib_mirror, len);
             }
             return 0;
         }
+    }
+
+    if (ble_uuid_cmp(uuid, &UUID_CONFIG.u) == 0) {
+        if (ctxt->op != BLE_GATT_ACCESS_OP_READ_CHR) {
+            return BLE_ATT_ERR_UNLIKELY;
+        }
+        return os_mbuf_append(ctxt->om, s_config_mirror, s_config_len) == 0
+             ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
     }
 
     return BLE_ATT_ERR_UNLIKELY;
@@ -126,6 +144,10 @@ static const struct ble_gatt_svc_def s_svcs[] = {
               .access_cb = gatt_access,
               .val_handle = &s_h_backfill,
               .flags = BLE_GATT_CHR_F_NOTIFY },
+            { .uuid = &UUID_CONFIG.u,
+              .access_cb = gatt_access,
+              .val_handle = &s_config_handle,
+              .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY },
             { .uuid = &UUID_CALIB.u,
               .access_cb = gatt_access,
               .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE },
@@ -324,6 +346,20 @@ esp_err_t ble_notify_event(const rehab_event_t *evt)
         off += evt->payload_len;
     }
     return notify(s_h_events, s_txbuf, off);
+}
+
+/* Serialised configuration, for GET_CONFIG. The host reads this back to
+ * confirm a SET_CONFIG took effect [PRD §5.9.1]. Also readable at any time, so
+ * a client that reconnects mid-session can learn the parameters in force
+ * without having to ask. */
+esp_err_t ble_notify_config(const uint8_t *tlv, size_t len)
+{
+    if (!tlv || len > sizeof(s_config_mirror)) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    memcpy(s_config_mirror, tlv, len);
+    s_config_len = len;
+    return notify(s_config_handle, s_config_mirror, s_config_len);
 }
 
 esp_err_t ble_notify_backfill(const emg_frame_t *frames, size_t n, uint32_t seq)

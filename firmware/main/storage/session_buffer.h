@@ -50,4 +50,26 @@ size_t session_buffer_read_emg(uint32_t from_seq, emg_frame_t *out, size_t max);
 
 void session_buffer_stats(session_stats_t *out);
 
+/* ── Backfill after a dropout [PRD §5.9] ─────────────────────────────────
+ *
+ * The host reads the retained range from the status characteristic, then asks
+ * for what it missed. Requests are served BELOW the live stream in priority,
+ * so catching up never stalls real-time data — the storage task does the work
+ * one chunk at a time rather than blocking on the whole range.
+ *
+ * If part of the range has aged out, the device says so through the gap flag
+ * rather than silently serving a short range as though it were complete.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/* Queue a replay. ESP_ERR_INVALID_ARG for a reversed range,
+ * ESP_ERR_NOT_FOUND if none of it is still retained. */
+esp_err_t session_buffer_request_backfill(uint32_t from_seq, uint32_t to_seq);
+
+/* True while a request is outstanding. */
+bool session_buffer_backfill_pending(void);
+
+/* Send the next chunk. Returns true while more remain. Called from the
+ * storage task, which runs below the transmit task. */
+bool session_buffer_service_backfill(void);
+
 #endif /* SESSION_BUFFER_H */

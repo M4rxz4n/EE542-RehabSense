@@ -1,15 +1,8 @@
 /*
- * rep_cycle.c — hold-gated repetition state machine
+ * rep_cycle.c — repetition detection [PRD §5.4]
  *
- * Deliberately not a learned model. Band crossings held for a fixed duration
- * are a solved problem: deterministic, debuggable, and every miscount traces
- * back to a threshold you can print. There is also no training data yet —
- * these thresholds are what produce the labelled repetition boundaries any
- * future model would need.
- *
- * Bands are fractions of the patient's calibrated ROM, never absolute
- * anatomical angles. A stroke patient who cannot reach full extension still
- * gets a working detector scaled to what they can do.
+ * See rep_cycle.h for the cycle and the reasoning behind counting on the
+ * return rather than at the top of the curl.
  */
 
 #include <string.h>
@@ -17,6 +10,7 @@
 #include "esp_log.h"
 #include "rep_cycle.h"
 #include "grading.h"
+#include "activation.h"
 #include "rehab_config.h"
 
 static const char *TAG = "rep";
@@ -29,22 +23,27 @@ typedef struct {
 
     uint16_t    rep_count;
     uint16_t    comp_flags;
+    bool        set_complete;
 
     /* Per-repetition accumulation. */
-    uint64_t    rep_start_us;
+    uint64_t    rep_start_us;      /* crossing the start threshold */
+    uint64_t    rep_finish_us;     /* crossing the finish threshold */
     float       peak_angle;
-    float       activation_sum;     /* agonist %MVC, concentric only */
+    float       activation_sum;    /* agonist %MVC */
     float       antagonist_sum;
+    float       overlap_sum;       /* antagonist while the agonist is active */
     uint32_t    activation_samples;
+    uint32_t    overlap_samples;
 
-    /* Smoothness: accumulated |jerk| of the angle trajectory, alongside the
-     * accumulated speed it is normalised against. */
-    float       prev_velocity;
-    float       jerk_sum;
-    float       speed_sum;
-    uint32_t    jerk_samples;
+    /* Smoothness: velocity peaks over the movement [PRD §5.5]. */
+    float       vel_lp;            /* low-passed velocity */
+    float       prev_vel_lp;
+    float       peak_speed;
+    float       peak_mag[REP_MAX_VEL_PEAKS];
+    uint8_t     peak_n;
+    bool        rising;
 
-    /* Hold steadiness: variance of angle during the two holds. */
+    /* Hold steadiness: variance of the angle during the confirming hold. */
     float       hold_sum;
     float       hold_sum_sq;
     uint32_t    hold_samples;
@@ -53,6 +52,7 @@ typedef struct {
     uint32_t    shoulder_ticks;
     uint32_t    trunk_ticks;
     uint32_t    swing_ticks;
+    bool        jolt_excluded;     /* a spike voided part of this rep */
 
     /* Fatigue trend across the set. */
     float       mdf_at_rep[64];
@@ -62,34 +62,30 @@ typedef struct {
     bool        in_set;
 } rep_ctx_t;
 
-static rep_ctx_t      s;
-static calib_record_t s_calib;
-static bool           s_have_calib;
+static rep_ctx_t           s;
+static calib_record_t      s_calib;
+static bool                s_have_calib;
+static rehab_runtime_cfg_t s_cfg;
+static activation_det_t    s_act;
 
-/* Precomputed band edges, refreshed whenever calibration changes. */
-static float s_extended_hi;   /* top of the extension band */
-static float s_flexed_lo;     /* bottom of the flexion band */
-static float s_hysteresis;
-
-static void recompute_bands(void)
-{
-    if (!s_have_calib) {
-        return;
-    }
-    const float rom = calib_rom(&s_calib);
-    s_extended_hi = s_calib.angle_min + REP_EXTENDED_BAND_FRAC * rom;
-    s_flexed_lo   = s_calib.angle_min + REP_FLEXED_BAND_FRAC   * rom;
-    s_hysteresis  = 0.03f * rom;
-
-    ESP_LOGI(TAG, "bands: extended <= %.1f, flexed >= %.1f (ROM %.1f deg)",
-             s_extended_hi, s_flexed_lo, rom);
-}
+/* ────────────────────────────────────────────────────────────────────── */
 
 void rep_cycle_init(void)
 {
     memset(&s, 0, sizeof(s));
-    s.state = REP_WAIT_START;
+    s.state      = REP_READY;
     s_have_calib = false;
+    rehab_cfg_defaults(&s_cfg);
+    activation_init(&s_act, 0.0f, 0.0f, 0.0f, FEATURE_RATE_HZ);
+}
+
+void rep_cycle_set_config(const rehab_runtime_cfg_t *cfg)
+{
+    if (cfg) {
+        s_cfg = *cfg;
+    } else {
+        rehab_cfg_defaults(&s_cfg);
+    }
 }
 
 void rep_cycle_set_calibration(const calib_record_t *calib)
@@ -100,17 +96,45 @@ void rep_cycle_set_calibration(const calib_record_t *calib)
     }
     memcpy(&s_calib, calib, sizeof(s_calib));
     s_have_calib = true;
-    recompute_bands();
+
+    const uint8_t ag = (s_cfg.agonist_channel < EMG_N_CHANNELS)
+                           ? s_cfg.agonist_channel : 0;
+
+    activation_init(&s_act,
+                    s_calib.emg_rest_rms[ag],
+                    s_calib.emg_rest_sd[ag],
+                    s_calib.emg_mvc[ag],
+                    FEATURE_RATE_HZ);
+
+    ESP_LOGI(TAG, "activation: on>%.3f off<%.3f %%MVC%s",
+             s_act.on_thresh, s_act.off_thresh,
+             s_act.using_fallback ? " (FALLBACK — calibration gave no sigma)"
+                                  : "");
+    ESP_LOGI(TAG, "angles: start %.1f finish %.1f target %.1f (peak at %.1f)",
+             s_cfg.start_angle_deg, s_cfg.finish_angle_deg,
+             s_cfg.target_angle_deg,
+             s_cfg.target_angle_deg * REP_PEAK_FRAC);
 }
 
 void rep_cycle_begin_set(void)
 {
-    const bool had_calib = s_have_calib;
+    const bool  had_calib = s_have_calib;
+    const calib_record_t keep_calib = s_calib;
+    const activation_det_t keep_act = s_act;
+
     memset(&s, 0, sizeof(s));
-    s.state  = REP_WAIT_START;
+    s.state  = REP_READY;
     s.in_set = true;
+
     s_have_calib = had_calib;
-    ESP_LOGI(TAG, "set started");
+    s_calib      = keep_calib;
+    s_act        = keep_act;
+
+    /* A contraction still running from the previous set must not arm the
+     * first repetition of this one. */
+    activation_reset(&s_act);
+
+    ESP_LOGI(TAG, "set started, target %u reps", s_cfg.rep_target);
 }
 
 void rep_cycle_end_set(void)
@@ -119,10 +143,9 @@ void rep_cycle_end_set(void)
     ESP_LOGI(TAG, "set ended: %u repetitions", s.rep_count);
 }
 
-bool rep_cycle_fatigue_flagged(void)
-{
-    return s.fatigue_flagged;
-}
+bool rep_cycle_fatigue_flagged(void) { return s.fatigue_flagged; }
+bool rep_cycle_activation_on(void)   { return s_act.on; }
+bool rep_cycle_set_complete(void)    { return s.set_complete; }
 
 /* ────────────────────────────────────────────────────────────────────── */
 
@@ -133,21 +156,22 @@ static void enter(rep_state_t next, uint64_t t_us)
     s.hold_running     = false;
 }
 
-/* A hold means stationary, not merely inside the band. */
+/* A hold means stationary, not merely below the finish threshold. */
 static bool settled(const fusion_out_t *m)
 {
-    return fabsf(m->elbow_velocity_dps) <= REP_HOLD_MAX_VEL_DPS;
+    return fabsf(m->elbow_velocity_dps) <= s_cfg.hold_velocity_thresh;
 }
 
-static bool start_position_ok(const fusion_out_t *m)
+static bool posture_ok(const fusion_out_t *m)
 {
-    return (m->elbow_angle_deg <= s_extended_hi + s_hysteresis) &&
-           (m->upper_arm_dev_deg <= START_POS_UPPER_ARM_TOL_DEG);
+    return m->upper_arm_dev_deg <= START_POS_UPPER_ARM_TOL_DEG;
 }
 
-/* Compensation is evaluated only during the moving phases. Attitude
- * thresholds confirm in 30 ms; the arm-swing rate threshold needs longer
- * because a brief spike is not a swing. */
+/* ──────────────────────────────────────────────────────────────────────
+ * Compensation [PRD §5.5]. Evaluated only during the moving phases, latched
+ * for the repetition, and reported at the confirming hold so feedback lands
+ * at one predictable moment rather than interrupting the movement.
+ * ────────────────────────────────────────────────────────────────────── */
 static void check_compensation(const fusion_out_t *m)
 {
     const uint32_t confirm_attitude =
@@ -155,7 +179,7 @@ static void check_compensation(const fusion_out_t *m)
     const uint32_t confirm_swing =
         (COMP_ARM_SWING_SUSTAIN_MS * FEATURE_RATE_HZ) / 1000;
 
-    if (m->upper_arm_dev_deg > COMP_SHOULDER_HIKE_DEG) {
+    if (m->upper_arm_dev_deg > s_cfg.comp_shoulder_deg) {
         if (++s.shoulder_ticks >= confirm_attitude) {
             s.comp_flags |= COMP_FLAG_SHOULDER;
         }
@@ -163,15 +187,10 @@ static void check_compensation(const fusion_out_t *m)
         s.shoulder_ticks = 0;
     }
 
-    /* Trunk lean shows as a common-mode attitude shift. With only two IMUs on
-     * the arm this is approximated by a moderate upper-arm deviation that is
-     * NOT accompanied by elbow motion — the whole body tilted rather than the
-     * shoulder hiking.
-     *
-     * TODO(hardware): a trunk IMU would make this a direct measurement rather
-     * than an inference. Flagged in the design doc as a known limitation. */
-    if (m->upper_arm_dev_deg > COMP_TRUNK_LEAN_DEG &&
-        fabsf(m->elbow_velocity_dps) < 5.0f) {
+    /* Common-mode rotation of BOTH IMUs — the whole arm carried by the torso.
+     * fusion.c computes this with an axis-alignment gate, so a shoulder hike
+     * cannot also register here. */
+    if (m->common_mode_deg > s_cfg.comp_trunk_deg) {
         if (++s.trunk_ticks >= confirm_attitude) {
             s.comp_flags |= COMP_FLAG_TRUNK;
         }
@@ -179,30 +198,77 @@ static void check_compensation(const fusion_out_t *m)
         s.trunk_ticks = 0;
     }
 
-    if (m->upper_arm_rate_dps > COMP_ARM_SWING_DPS) {
+    if (m->upper_arm_rate_dps > s_cfg.comp_swing_dps) {
         if (++s.swing_ticks >= confirm_swing) {
             s.comp_flags |= COMP_FLAG_SWING;
         }
     } else {
         s.swing_ticks = 0;
     }
+
+    /* A sudden jolt excludes that segment from scoring rather than being read
+     * as a movement fault the patient caused [PRD §5.5]. */
+    if (m->max_accel_g > COMP_JOLT_G) {
+        s.jolt_excluded = true;
+    }
 }
 
+/* ──────────────────────────────────────────────────────────────────────
+ * Smoothness, per PRD §5.5: count velocity peaks exceeding 10 % of the
+ * repetition's own peak velocity. One peak is one smooth push and scores 100;
+ * each extra peak is a separate correction the patient had to make.
+ *
+ * Peaks are detected on a low-passed velocity so that sensor noise does not
+ * read as a correction, and magnitudes are stored so the 10 % threshold can be
+ * applied at the end, once the repetition's peak is actually known.
+ * ────────────────────────────────────────────────────────────────────── */
 static void accumulate_motion(const fusion_out_t *m, const emg_features_t *e)
 {
     if (m->elbow_angle_deg > s.peak_angle) {
         s.peak_angle = m->elbow_angle_deg;
     }
 
-    const float dv = m->elbow_velocity_dps - s.prev_velocity;
-    s.jerk_sum  += fabsf(dv);
-    s.speed_sum += fabsf(m->elbow_velocity_dps);
-    s.jerk_samples++;
-    s.prev_velocity = m->elbow_velocity_dps;
+    /* One-pole low pass at REP_VEL_LPF_HZ. */
+    const float dt    = 1.0f / (float)FEATURE_RATE_HZ;
+    const float rc    = 1.0f / (2.0f * 3.14159265f * REP_VEL_LPF_HZ);
+    const float alpha = dt / (rc + dt);
+    s.vel_lp += alpha * (m->elbow_velocity_dps - s.vel_lp);
 
-    s.activation_sum     += e->envelope[0];   /* agonist: biceps by default */
-    s.antagonist_sum     += e->envelope[1];
+    const float speed = fabsf(s.vel_lp);
+    if (speed > s.peak_speed) {
+        s.peak_speed = speed;
+    }
+
+    /* A local maximum in speed is a push. */
+    const float prev = fabsf(s.prev_vel_lp);
+    if (speed > prev) {
+        s.rising = true;
+    } else if (s.rising && speed < prev) {
+        if (s.peak_n < REP_MAX_VEL_PEAKS) {
+            s.peak_mag[s.peak_n++] = prev;
+        }
+        s.rising = false;
+    }
+    s.prev_vel_lp = s.vel_lp;
+
+    const uint8_t ag = (s_cfg.agonist_channel < EMG_N_CHANNELS)
+                           ? s_cfg.agonist_channel : 0;
+
+    s.activation_sum += e->envelope[ag];
     s.activation_samples++;
+
+#if EMG_N_CHANNELS > 1
+    const uint8_t an = ag ? 0 : 1;
+    s.antagonist_sum += e->envelope[an];
+
+    /* Co-contraction is evaluated only while the agonist is active
+     * [PRD §5.5]: antagonist activity during a rest phase is not the patient
+     * braking themselves, it is just a quiet muscle. */
+    if (s_act.on) {
+        s.overlap_sum += e->envelope[an];
+        s.overlap_samples++;
+    }
+#endif
 }
 
 static void accumulate_hold(const fusion_out_t *m)
@@ -212,21 +278,46 @@ static void accumulate_hold(const fusion_out_t *m)
     s.hold_samples++;
 }
 
+static void begin_repetition(const fusion_out_t *m, uint64_t t_us)
+{
+    s.rep_start_us       = t_us;
+    s.rep_finish_us      = 0;
+    s.peak_angle         = m->elbow_angle_deg;
+    s.activation_sum     = 0.0f;
+    s.antagonist_sum     = 0.0f;
+    s.overlap_sum        = 0.0f;
+    s.activation_samples = 0;
+    s.overlap_samples    = 0;
+    s.vel_lp             = 0.0f;
+    s.prev_vel_lp        = 0.0f;
+    s.peak_speed         = 0.0f;
+    s.peak_n             = 0;
+    s.rising             = false;
+    s.hold_sum           = 0.0f;
+    s.hold_sum_sq        = 0.0f;
+    s.hold_samples       = 0;
+    s.comp_flags         = 0;
+    s.jolt_excluded      = false;
+    s.shoulder_ticks = s.trunk_ticks = s.swing_ticks = 0;
+}
+
 /* ──────────────────────────────────────────────────────────────────────
- * Fatigue: median frequency regressed across the set.
+ * Fatigue: median frequency regressed across the set [PRD §5.8].
  * ────────────────────────────────────────────────────────────────────── */
 static void update_fatigue(const emg_features_t *e)
 {
-    if (e->mdf[0] <= 0.0f || s.mdf_count >= 64) {
+    const uint8_t ag = (s_cfg.agonist_channel < EMG_N_CHANNELS)
+                           ? s_cfg.agonist_channel : 0;
+
+    if (e->mdf[ag] <= 0.0f || s.mdf_count >= 64) {
         return;
     }
-    s.mdf_at_rep[s.mdf_count++] = e->mdf[0];
+    s.mdf_at_rep[s.mdf_count++] = e->mdf[ag];
 
     if (s.mdf_count < FATIGUE_CONSEC_REPS + 1 || s.fatigue_flagged) {
         return;
     }
 
-    /* Least-squares slope over the whole set so far, in Hz per repetition. */
     const uint16_t n = s.mdf_count;
     float sx = 0, sy = 0, sxy = 0, sxx = 0;
     for (uint16_t i = 0; i < n; i++) {
@@ -242,7 +333,7 @@ static void update_fatigue(const emg_features_t *e)
     const float slope = (n * sxy - sx * sy) / denom;
 
     /* Require the last few repetitions to each sit below the one before, so a
-     * single noisy estimate cannot trigger a rest cue. */
+     * single noisy estimate cannot fire a rest cue at a patient. */
     bool consistently_falling = true;
     for (uint16_t i = n - FATIGUE_CONSEC_REPS; i + 1 < n; i++) {
         if (s.mdf_at_rep[i + 1] >= s.mdf_at_rep[i]) {
@@ -256,6 +347,89 @@ static void update_fatigue(const emg_features_t *e)
         ESP_LOGI(TAG, "fatigue flagged: MDF slope %.2f Hz/rep over %u reps",
                  slope, n);
     }
+}
+
+/* Count the stored velocity peaks that clear 10 % of the repetition's own
+ * peak speed. Done at the end because the reference is not known until then. */
+static uint8_t significant_peaks(void)
+{
+    if (s.peak_speed <= 0.0f) {
+        return 0;
+    }
+    const float floor_v = s.peak_speed * SMOOTH_PEAK_FRAC;
+    uint8_t n = 0;
+    for (uint8_t i = 0; i < s.peak_n; i++) {
+        if (s.peak_mag[i] >= floor_v) {
+            n++;
+        }
+    }
+    return n;
+}
+
+static void complete_repetition(const fusion_out_t *m, const emg_features_t *e,
+                                uint64_t t_us, rep_tick_t *out)
+{
+    s.rep_count++;
+
+    const float tempo_s = (s.rep_finish_us > s.rep_start_us)
+        ? (float)(s.rep_finish_us - s.rep_start_us) / 1e6f
+        : 0.0f;
+
+    grading_input_t gi = {
+        .peak_angle        = s.peak_angle,
+        .angle_min         = s_calib.angle_min,
+        .target_angle      = s_cfg.target_angle_deg,
+        .tempo_s           = tempo_s,
+        .activation_sum    = s.activation_sum,
+        .antagonist_sum    = s.antagonist_sum,
+        .overlap_sum       = s.overlap_sum,
+        .activation_n      = s.activation_samples,
+        .overlap_n         = s.overlap_samples,
+        .velocity_peaks    = significant_peaks(),
+        .hold_sum          = s.hold_sum,
+        .hold_sum_sq       = s.hold_sum_sq,
+        .hold_n            = s.hold_samples,
+        .comp_flags        = s.comp_flags,
+        .jolt_excluded     = s.jolt_excluded,
+    };
+    grading_evaluate(&gi, &out->result);
+
+    out->result.index      = s.rep_count;
+    out->result.t_start_us = s.rep_start_us;
+    out->result.t_end_us   = t_us;
+    out->result.tempo_s    = tempo_s;
+    out->result.comp_flags = s.comp_flags;
+
+    update_fatigue(e);
+
+    /* Reaching the target ends the set [PRD §5.6]: the set-complete pattern
+     * follows the per-repetition cue after a gap, so the patient gets both the
+     * quality result and confirmation that the set is finished. A flagged
+     * repetition still counts toward the target — quality lives in the score,
+     * not in the counter [PRD §5.5]. */
+    bool reached_now = false;
+    if (s_cfg.rep_target > 0 && s.rep_count >= s_cfg.rep_target &&
+        !s.set_complete) {
+        s.set_complete = true;
+        reached_now    = true;
+    }
+
+    out->event      = REP_EVT_REP_COMPLETE;
+    out->comp_flags = s.comp_flags;
+    out->rep_count  = s.rep_count;
+
+    /* An EDGE, not the latched state: the set-complete cue must fire on the
+     * repetition that reaches the target and not on every one after it. The
+     * latched value is available through rep_cycle_set_complete() for anyone
+     * who needs to ask. */
+    out->set_complete = reached_now;
+
+    ESP_LOGI(TAG, "rep %u: score %u, range %.0f%%, tempo %.1fs, peaks %u, "
+                  "comp 0x%02X%s",
+             s.rep_count, out->result.score,
+             out->result.rom_fraction * 100.0f, tempo_s,
+             out->result.velocity_peaks, s.comp_flags,
+             s.set_complete ? " [SET COMPLETE]" : "");
 }
 
 /* ────────────────────────────────────────────────────────────────────── */
@@ -273,62 +447,43 @@ void rep_cycle_tick(const fusion_out_t *motion,
         return;
     }
 
-    const uint64_t hold_us    = (uint64_t)REP_HOLD_MS * 1000;
+    const uint8_t ag = (s_cfg.agonist_channel < EMG_N_CHANNELS)
+                           ? s_cfg.agonist_channel : 0;
+
+    const bool act = activation_update(&s_act, emg->envelope[ag]);
+    out->activation_on = act;
+
+    const uint64_t hold_us    = (uint64_t)s_cfg.hold_duration_ms * 1000;
     const uint64_t timeout_us = (uint64_t)REP_PHASE_TIMEOUT_MS * 1000;
+
+    const float angle = motion->elbow_angle_deg;
+    const float start_th  = s_calib.angle_min + s_cfg.start_angle_deg;
+    const float finish_th = s_calib.angle_min + s_cfg.finish_angle_deg;
+    const float peak_th   = s_calib.angle_min +
+                            s_cfg.target_angle_deg * REP_PEAK_FRAC;
 
     switch (s.state) {
 
-    case REP_WAIT_START:
-        /* Counter frozen until posture is correct. Passing through the right
-         * angle on the way elsewhere must not arm anything, which is what the
-         * hold timer in EXTENDED_HOLD enforces. */
-        if (start_position_ok(motion)) {
-            out->event = REP_EVT_START_POS_OK;
-            enter(REP_EXTENDED_HOLD, t_us);
-        } else {
-            out->event = REP_EVT_START_POS_BAD;
-        }
-        break;
-
-    case REP_EXTENDED_HOLD:
-        if (!start_position_ok(motion)) {
-            s.hold_running = false;
-            enter(REP_WAIT_START, t_us);
-            out->event = REP_EVT_START_POS_BAD;
-            break;
-        }
-
-        if (!settled(motion)) {
-            /* In the band but still moving: the hold has not begun. */
-            s.hold_running = false;
-            break;
-        }
-
-        if (!s.hold_running) {
-            s.hold_running    = true;
-            s.hold_started_us = t_us;
-            out->event        = REP_EVT_HOLD_START;
-            s.hold_sum = s.hold_sum_sq = 0.0f;
-            s.hold_samples = 0;
-        }
-        accumulate_hold(motion);
-
-        if (t_us - s.hold_started_us >= hold_us) {
-            /* Bottom hold satisfied — the repetition is now armed. */
-            s.rep_start_us       = t_us;
-            s.peak_angle         = motion->elbow_angle_deg;
-            s.activation_sum     = 0.0f;
-            s.antagonist_sum     = 0.0f;
-            s.activation_samples = 0;
-            s.jerk_sum           = 0.0f;
-            s.speed_sum          = 0.0f;
-            s.jerk_samples       = 0;
-            s.prev_velocity      = 0.0f;
-            s.comp_flags         = 0;
-            s.shoulder_ticks = s.trunk_ticks = s.swing_ticks = 0;
-
+    case REP_READY:
+        /* THE GATE [PRD §5.4]. Posture alone is not enough: an arm somebody
+         * else is moving satisfies every geometric condition. */
+        if (angle > start_th) {
+            if (!act) {
+                /* The arm is rising and the agonist is quiet. This is the
+                 * passive swing the whole device exists to catch. Report it,
+                 * do not count it, and do not arm. */
+                out->event = REP_EVT_PASSIVE_SWING;
+                break;
+            }
+            if (!posture_ok(motion)) {
+                out->event = REP_EVT_START_POS_BAD;
+                break;
+            }
+            begin_repetition(motion, t_us);
             out->event = REP_EVT_REP_START;
             enter(REP_CONCENTRIC, t_us);
+        } else {
+            out->event = REP_EVT_START_POS_OK;
         }
         break;
 
@@ -336,39 +491,73 @@ void rep_cycle_tick(const fusion_out_t *motion,
         accumulate_motion(motion, emg);
         check_compensation(motion);
 
-        if (motion->elbow_angle_deg >= s_flexed_lo - s_hysteresis) {
-            enter(REP_FLEXED_HOLD, t_us);
+        if (angle >= peak_th) {
+            /* Soft click: "you may begin the return." The one cue that fires
+             * mid-movement rather than at a stationary moment, which is why
+             * it is the shortest and lightest in the set. */
+            out->event = REP_EVT_PEAK_REACHED;
+            enter(REP_PEAK, t_us);
+        } else if (angle < finish_th) {
+            /* Fell back below the finish threshold without reaching the
+             * target: a partial, reported and not counted. */
+            out->event = REP_EVT_REP_ABANDONED;
+            enter(REP_READY, t_us);
+        } else if (t_us - s.state_entered_us > timeout_us) {
+            out->event = REP_EVT_REP_ABANDONED;
+            enter(REP_READY, t_us);
+        }
+        break;
+
+    case REP_PEAK:
+        accumulate_motion(motion, emg);
+        check_compensation(motion);
+
+        /* Reversal on the low-passed velocity rather than a fixed negative
+         * rate, which jitters at the top of a slow curl. */
+        if (s.vel_lp < 0.0f) {
+            enter(REP_ECCENTRIC, t_us);
+        } else if (t_us - s.state_entered_us > timeout_us) {
+            out->event = REP_EVT_REP_ABANDONED;
+            enter(REP_READY, t_us);
+        }
+        break;
+
+    case REP_ECCENTRIC:
+        accumulate_motion(motion, emg);
+        check_compensation(motion);
+
+        if (angle <= finish_th) {
+            /* Tempo is measured start threshold to finish threshold and
+             * excludes the confirming hold [PRD §5.4]. */
+            s.rep_finish_us = t_us;
+            enter(REP_EXTENDED_HOLD, t_us);
             s.hold_sum = s.hold_sum_sq = 0.0f;
             s.hold_samples = 0;
         } else if (t_us - s.state_entered_us > timeout_us) {
             out->event = REP_EVT_REP_ABANDONED;
-            enter(REP_WAIT_START, t_us);
+            enter(REP_READY, t_us);
         }
         break;
 
-    case REP_FLEXED_HOLD:
-        if (motion->elbow_angle_deg < s_flexed_lo - s_hysteresis) {
-            /* Dropped out of the band before the hold completed. Back to
-             * climbing rather than counting a partial repetition. */
+    case REP_EXTENDED_HOLD:
+        if (angle > start_th) {
+            /* Left the extended position before the hold completed — started
+             * the next curl early. Nothing counts; back to READY, where the
+             * gate will arm again if the agonist is live. */
             s.hold_running = false;
-            enter(REP_CONCENTRIC, t_us);
+            out->event     = REP_EVT_REP_ABANDONED;
+            enter(REP_READY, t_us);
             break;
         }
 
-        check_compensation(motion);
-
-        if (motion->elbow_angle_deg > s.peak_angle) {
-            s.peak_angle = motion->elbow_angle_deg;
-        }
-
         if (!settled(motion)) {
-            /* Still climbing inside the band. Waiting to settle is what keeps
-             * the steadiness measure from charging a deeper curl for the
-             * motion it took to get there. */
+            /* Inside the band but still moving: the hold has not begun.
+             * Waiting to settle is what makes "hold for one second" mean a
+             * second of stillness rather than a second of anything at all. */
             s.hold_running = false;
             if (t_us - s.state_entered_us > timeout_us) {
                 out->event = REP_EVT_REP_ABANDONED;
-                enter(REP_WAIT_START, t_us);
+                enter(REP_READY, t_us);
             }
             break;
         }
@@ -383,60 +572,14 @@ void rep_cycle_tick(const fusion_out_t *motion,
         accumulate_hold(motion);
 
         if (t_us - s.hold_started_us >= hold_us) {
-            /* Top hold satisfied: count it, grade it, fire the haptic. */
-            s.rep_count++;
-
-            grading_input_t gi = {
-                .peak_angle      = s.peak_angle,
-                .angle_min       = s_calib.angle_min,
-                .angle_max       = s_calib.angle_max,
-                .activation_sum  = s.activation_sum,
-                .antagonist_sum  = s.antagonist_sum,
-                .activation_n    = s.activation_samples,
-                .jerk_sum        = s.jerk_sum,
-                .speed_sum       = s.speed_sum,
-                .jerk_n          = s.jerk_samples,
-                .hold_sum        = s.hold_sum,
-                .hold_sum_sq     = s.hold_sum_sq,
-                .hold_n          = s.hold_samples,
-                .comp_flags      = s.comp_flags,
-            };
-            grading_evaluate(&gi, &out->result);
-
-            out->result.index      = s.rep_count;
-            out->result.t_start_us = s.rep_start_us;
-            out->result.t_end_us   = t_us;
-            out->result.comp_flags = s.comp_flags;
-
-            update_fatigue(emg);
-
-            out->event      = REP_EVT_REP_COMPLETE;
-            out->comp_flags = s.comp_flags;
-            out->rep_count  = s.rep_count;
-
-            ESP_LOGI(TAG, "rep %u: score %u, ROM %.0f%%, comp 0x%02X",
-                     s.rep_count, out->result.score,
-                     out->result.rom_fraction * 100.0f, s.comp_flags);
-
-            enter(REP_ECCENTRIC, t_us);
-        }
-        break;
-
-    case REP_ECCENTRIC:
-        accumulate_motion(motion, emg);
-        check_compensation(motion);
-
-        if (motion->elbow_angle_deg <= s_extended_hi + s_hysteresis) {
-            enter(REP_EXTENDED_HOLD, t_us);
-        } else if (t_us - s.state_entered_us > timeout_us) {
-            out->event = REP_EVT_REP_ABANDONED;
-            enter(REP_WAIT_START, t_us);
+            complete_repetition(motion, emg, t_us, out);
+            enter(REP_READY, t_us);
         }
         break;
     }
 
-    out->state      = s.state;
-    out->rep_count  = s.rep_count;
+    out->state     = s.state;
+    out->rep_count = s.rep_count;
     if (out->event != REP_EVT_REP_COMPLETE) {
         out->comp_flags = s.comp_flags;
     }

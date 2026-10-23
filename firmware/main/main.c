@@ -33,8 +33,80 @@
 #include "session_buffer.h"
 #include "ble_service.h"
 #include "state_machine.h"
+#include "config.h"
+#include "rehab_time.h"
 
 static const char *TAG = "main";
+
+/* ── Battery ─────────────────────────────────────────────────────────────
+ *
+ * GPIO7 through a 2:1 divider on ADC1_CH6 [PRD §5.7].
+ *
+ * ADC1 runs in continuous DMA mode for EMG during a session, and a oneshot
+ * read cannot share the unit with it. So the battery is sampled whenever
+ * acquisition is NOT running — at boot, in STANDBY and between sets — and the
+ * last reading is held during a session.
+ *
+ * That is sufficient for the rule it serves: "below 15 % the device completes
+ * the current set, then stops and saves". The decision is taken at a set
+ * boundary, which is exactly when a fresh reading is available.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+static adc_oneshot_unit_handle_t s_vbat_adc;
+static uint16_t s_vbat_mv;
+static uint8_t  s_vbat_pct;
+static bool     s_battery_warned;
+static bool     s_stop_after_set;
+
+static void battery_init(void)
+{
+    adc_oneshot_unit_init_cfg_t cfg = { .unit_id = ADC_UNIT_1 };
+    if (adc_oneshot_new_unit(&cfg, &s_vbat_adc) != ESP_OK) {
+        ESP_LOGW(TAG, "battery ADC unavailable; charge will read unknown");
+        s_vbat_adc = NULL;
+        return;
+    }
+    adc_oneshot_chan_cfg_t ch = {
+        .atten    = ADC_ATTEN_DB_12,
+        .bitwidth = ADC_BITWIDTH_DEFAULT,
+    };
+    adc_oneshot_config_channel(s_vbat_adc, ADC_CHAN_VBAT, &ch);
+}
+
+static void battery_read(uint16_t *mv_out, uint8_t *pct_out)
+{
+    /* Only safe while continuous mode is idle. During a session the cached
+     * value stands. */
+    if (s_vbat_adc && sm_state() != FW_STATE_OPERATIONAL) {
+        int sum = 0, got = 0;
+        for (int i = 0; i < VBAT_SAMPLE_COUNT; i++) {
+            int raw = 0;
+            if (adc_oneshot_read(s_vbat_adc, ADC_CHAN_VBAT, &raw) == ESP_OK) {
+                sum += raw;
+                got++;
+            }
+        }
+        if (got > 0) {
+            /* 12-bit at 12 dB attenuation spans roughly 0..3100 mV. */
+            const int counts = sum / got;
+            const int at_pin = (counts * 3100) / 4095;
+            s_vbat_mv = (uint16_t)(at_pin * VBAT_DIVIDER_RATIO);
+
+            int pct = ((int)s_vbat_mv - VBAT_EMPTY_MV) * 100 /
+                      (VBAT_FULL_MV - VBAT_EMPTY_MV);
+            if (pct < 0)   pct = 0;
+            if (pct > 100) pct = 100;
+            s_vbat_pct = (uint8_t)pct;
+
+            if (s_vbat_pct >= VBAT_LOW_PCT) {
+                s_battery_warned = false;   /* re-arm after a charge */
+                status_led_set_battery_low(false);
+            }
+        }
+    }
+    if (mv_out)  *mv_out  = s_vbat_mv;
+    if (pct_out) *pct_out = s_vbat_pct;
+}
 
 /* Backend selection. Swapping to the ADS131M02 on the custom PCB is this one
  * line — nothing above the driver interface changes. */
@@ -187,6 +259,27 @@ static void ble_tx_task(void *arg)
     }
 }
 
+/* ── Storage ─────────────────────────────────────────────────────────────
+ *
+ * Serves backfill requests BELOW the live stream in priority, one chunk per
+ * pass, so a host catching up after a dropout never stalls real-time data
+ * [PRD §5.9]. Idles cheaply when nothing is outstanding.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+static void storage_task(void *arg)
+{
+    for (;;) {
+        if (session_buffer_backfill_pending()) {
+            session_buffer_service_backfill();
+            /* Pace the replay: a chunk every 20 ms is ~8 kB/s, comfortably
+             * below the live stream's share of the link. */
+            vTaskDelay(pdMS_TO_TICKS(20));
+        } else {
+            vTaskDelay(pdMS_TO_TICKS(100));
+        }
+    }
+}
+
 /* ── Housekeeping ────────────────────────────────────────────────────── */
 
 static void housekeeping_task(void *arg)
@@ -209,11 +302,26 @@ static void housekeeping_task(void *arg)
                 .flags       = (uint8_t)((st.psram_backed ? 1 : 0) |
                                          (st.gap_occurred ? 2 : 0)),
             };
-            /* TODO(hardware): battery divider on GPIO7 is wired but unread.
-             * Needs a oneshot read while continuous mode is paused, which
-             * only happens in STANDBY. Blocked on the divider ratio. */
-            ds.battery_pct = 0;
-            ds.battery_mv  = 0;
+            battery_read(&ds.battery_mv, &ds.battery_pct);
+
+            /* Below 15 % the device completes the current set, then stops and
+             * saves, rather than terminating mid-set [PRD §5.7]. The fault
+             * carries a cue, so the patient is told rather than simply
+             * finding the device dead. */
+            if (ds.battery_pct > 0 && ds.battery_pct < VBAT_LOW_PCT &&
+                !s_battery_warned) {
+                s_battery_warned = true;
+                status_led_set_battery_low(true);
+                if (sm_state() == FW_STATE_OPERATIONAL) {
+                    ESP_LOGW(TAG, "battery %u%%: finishing the set, then "
+                                  "stopping", ds.battery_pct);
+                    s_stop_after_set = true;
+                } else {
+                    sm_fault(FAULT_BATTERY_LOW, "battery low");
+                }
+            }
+
+            ds.host_time_offset_us = rehab_time_offset_us();
 
             ble_update_status(&ds);
         }
@@ -228,16 +336,26 @@ static void on_ble_command(uint8_t op, const uint8_t *payload, size_t len)
     case CMD_START_SESSION:
         sm_request_start_session(len ? payload[0] : 0);
         break;
+
     case CMD_STOP_SESSION:
         sm_request_stop_session();
         break;
+
     case CMD_START_CALIBRATION:
-    case CMD_REQUEST_RECALIBRATION:
-        sm_request_calibration(true);
+        /* The step argument has always been on the wire; it is now honoured,
+         * so a failed step can be repeated on its own [PRD §5.3]. */
+        sm_request_calibration(len ? (calib_phase_t)payload[0]
+                                   : CALIB_STEP_ALL);
         break;
+
+    case CMD_REQUEST_RECALIBRATION:
+        sm_request_recalibration();
+        break;
+
     case CMD_ABORT_CALIBRATION:
         calibration_abort();
         break;
+
     case CMD_ACK_SEQ:
         if (len >= 4) {
             uint32_t seq;
@@ -245,14 +363,83 @@ static void on_ble_command(uint8_t op, const uint8_t *payload, size_t len)
             session_buffer_ack(seq);
         }
         break;
+
+    case CMD_REQUEST_BACKFILL:
+        /* Replay a range the host missed during a dropout [PRD §5.9]. Served
+         * below the live stream in priority so catching up never stalls
+         * real-time data; the storage task owns the pacing. */
+        if (len >= 8) {
+            uint32_t from, to;
+            memcpy(&from, payload,     4);
+            memcpy(&to,   payload + 4, 4);
+            const esp_err_t be = session_buffer_request_backfill(from, to);
+            if (be != ESP_OK) {
+                ESP_LOGW(TAG, "backfill %u..%u refused (%d)",
+                         (unsigned)from, (unsigned)to, (int)be);
+            }
+        } else {
+            ESP_LOGW(TAG, "REQUEST_BACKFILL needs 8 bytes, got %u",
+                     (unsigned)len);
+        }
+        break;
+
+    case CMD_SET_CONFIG:
+        /* TLV of the parameters in PRD §5.9.1. Values are validated and
+         * clamped, persisted to NVS, and pushed to grading and the repetition
+         * cycle; they take effect from the next repetition. */
+        if (config_apply_tlv(payload, len) != ESP_OK) {
+            ESP_LOGW(TAG, "SET_CONFIG rejected: malformed TLV");
+        }
+        break;
+
+    case CMD_GET_CONFIG: {
+        /* How the host confirms a write took effect. */
+        uint8_t buf[CFG_TLV_MAX_BYTES];
+        const size_t n = config_serialise(buf, sizeof(buf));
+        ble_notify_config(buf, n);
+        break;
+    }
+
+    case CMD_SET_TIME:
+        /* The device records the offset and reports it, but never adjusts its
+         * own clock: altering the sampling clock would corrupt the timing the
+         * spectral analysis depends on [PRD §12]. */
+        if (len >= 8) {
+            uint64_t host_us;
+            memcpy(&host_us, payload, 8);
+            rehab_time_set_host_epoch_us(host_us,
+                                         (uint64_t)esp_timer_get_time());
+            ESP_LOGI(TAG, "host time received; offset %lld us",
+                     (long long)rehab_time_offset_us());
+        }
+        break;
+
+    case CMD_INTERNAL_CALIB_WRITE:
+        /* A calibration record pushed from the host. This is how a
+         * clinician-supplied normalisation value supersedes a measured one
+         * [PRD §5.3]. */
+        if (len == sizeof(calib_record_t)) {
+            const calib_record_t *rec = (const calib_record_t *)payload;
+            calibration_set_record(rec, true);
+            emg_dsp_set_calibration(rec);
+            rep_cycle_set_calibration(rec);
+            ESP_LOGI(TAG, "calibration record installed from host");
+        } else {
+            ESP_LOGW(TAG, "calib write: expected %u bytes, got %u",
+                     (unsigned)sizeof(calib_record_t), (unsigned)len);
+        }
+        break;
+
     case CMD_HAPTIC_TEST:
         if (len >= 1) {
             haptic_play((haptic_pattern_t)payload[0]);
         }
         break;
+
     case CMD_POWER_OFF:
         sm_request_power_off();
         break;
+
     default:
         ESP_LOGW(TAG, "unhandled command 0x%02X", op);
         break;
@@ -308,6 +495,13 @@ void app_main(void)
     ESP_ERROR_CHECK(session_buffer_init());
     calibration_init();
     rep_cycle_init();
+    battery_init();
+
+    /* Runtime configuration: NVS if a profile exists, compile-time defaults
+     * otherwise. Published to grading and the repetition cycle before either
+     * runs, so the first repetition is already scored against the parameters
+     * in force [PRD §5.9.1]. */
+    config_init();
 
     /* ── Self-test ─────────────────────────────────────────────────── */
     emg_selftest_t emg_st;
@@ -348,6 +542,8 @@ void app_main(void)
                             NULL, PRIO_ANALYSIS,     NULL, CORE_SENSOR);
     xTaskCreatePinnedToCore(ble_tx_task,       "ble_tx",   STACK_BLE_TX,
                             NULL, PRIO_BLE_TX,       NULL, CORE_COMMS);
+    xTaskCreatePinnedToCore(storage_task,      "storage",  STACK_STORAGE,
+                            NULL, PRIO_STORAGE,      NULL, CORE_COMMS);
     xTaskCreatePinnedToCore(housekeeping_task, "house",    STACK_HOUSEKEEPING,
                             NULL, PRIO_HOUSEKEEPING, NULL, CORE_COMMS);
 
