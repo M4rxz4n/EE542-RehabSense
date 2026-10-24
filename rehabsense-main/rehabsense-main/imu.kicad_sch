@@ -1041,6 +1041,16 @@
 	)
 	(wire
 		(pts
+			(xy 71.12 81.28) (xy 76.2 81.28)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "0a552753-4e92-42ac-baa9-05eadefba44d")
+	)
+	(wire
+		(pts
 			(xy 215.9 71.12) (xy 215.9 72.39)
 		)
 		(stroke
@@ -1238,6 +1248,16 @@
 			(type default)
 		)
 		(uuid "765303dc-30a6-4c18-88d0-e15ea7650a88")
+	)
+	(wire
+		(pts
+			(xy 172.72 81.28) (xy 177.8 81.28)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "7b4b2942-2a11-4c0b-83ba-45ce49ffeff7")
 	)
 	(wire
 		(pts
@@ -1469,6 +1489,16 @@
 		)
 		(uuid "0bf04daf-c1d3-4220-a2cf-770c3b7c4aea")
 	)
+	(label "CS_IMU1"
+		(at 71.12 81.28 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify bottom)
+		)
+		(uuid "41bdcc44-5769-47c3-ad30-64ea67dbe167")
+	)
 	(label "SCL"
 		(at 71.12 86.36 0)
 		(effects
@@ -1488,6 +1518,16 @@
 			(justify left bottom)
 		)
 		(uuid "8ffc0b4f-196c-41af-b456-1f8a2ac65962")
+	)
+	(label "CS_IMU2"
+		(at 172.72 81.28 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify bottom)
+		)
+		(uuid "c20249eb-c91f-4d06-bf5b-67cb1a6be6a7")
 	)
 	(label "SDA"
 		(at 71.12 88.9 0)

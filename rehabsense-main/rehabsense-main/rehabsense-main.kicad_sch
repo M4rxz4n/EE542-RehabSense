@@ -11584,6 +11584,52 @@
 		)
 	)
 	(sheet
+		(at 99.06 118.11)
+		(size 24.13 15.24)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0)
+		)
+		(uuid "933edaa2-3247-4768-9b68-813542b56179")
+		(property "Sheetname" "adc"
+			(at 99.06 117.3984 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "adc.kicad_sch"
+			(at 99.06 133.9346 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "rehabsense-main"
+				(path "/b751250a-7d43-475a-8447-686d399cd67b"
+					(page "7")
+				)
+			)
+		)
+	)
+	(sheet
 		(at 55.88 48.26)
 		(size 25.4 17.78)
 		(exclude_from_sim no)
