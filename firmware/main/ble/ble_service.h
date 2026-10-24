@@ -46,6 +46,18 @@
 #define CMD_SET_TIME             0x0B   /* u64 host epoch us       */
 #define CMD_POWER_OFF            0x0C
 
+/* Bulk transfer [see net/session_xfer.h].
+ *
+ * START brings up the Wi-Fi AP and answers on the transfer characteristic
+ * with the SSID, password and address to fetch from. Refused while a set is
+ * running: the radio is shared and the live stream wins.
+ *
+ * The credentials deliberately travel over BLE rather than being printed on
+ * the device, because the BLE link is already paired with the host that is
+ * about to download a patient's session. */
+#define CMD_START_TRANSFER       0x0D
+#define CMD_STOP_TRANSFER        0x0E
+
 /* Not a wire opcode. A write to the calibration characteristic reaches the
  * command callback under this value, so a calib_record_t can never arrive at
  * the SET_CONFIG TLV parser — the two used to share 0x08. */
@@ -109,6 +121,31 @@ esp_err_t ble_notify_backfill(const emg_frame_t *frames, size_t n, uint32_t seq)
 
 /* Publish the serialised configuration for GET_CONFIG. */
 esp_err_t ble_notify_config(const uint8_t *tlv, size_t len);
+
+/* ── Transfer characteristic 0x0009 ──────────────────────────────────────
+ *
+ * How the host learns where to fetch the session from. Sent in answer to
+ * CMD_START_TRANSFER, and again whenever the transfer state changes, so a
+ * client that reconnects mid-transfer can pick up without restarting it.
+ *
+ * Packed and asserted for the same reason as device_status_t: a field added
+ * on one side and forgotten on the other should fail the build, not shift
+ * every field after it. */
+typedef struct __attribute__((packed)) {
+    uint8_t  state;              /* xfer_state_t */
+    uint8_t  clients;
+    uint16_t seconds_remaining;
+    uint32_t ipv4;               /* network byte order */
+    uint16_t port;
+    uint32_t bytes_served;
+    char     ssid[33];
+    char     password[16];
+} xfer_info_t;
+
+_Static_assert(sizeof(xfer_info_t) == 63, "xfer_info_t layout changed — "
+               "update XFER in host/rehab_protocol.py to match");
+
+esp_err_t ble_notify_xfer(const xfer_info_t *info);
 
 void ble_update_status(const device_status_t *status);
 

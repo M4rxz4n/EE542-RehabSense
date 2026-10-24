@@ -1,0 +1,47 @@
+# Patterns are written to match in both the current layout and the one
+# reorg.ps1 produces, so this file works before and after the move.
+
+# ── ESP-IDF build output ────────────────────────────────────────────────
+build/
+sdkconfig
+sdkconfig.old
+managed_components/
+dependencies.lock
+
+# sdkconfig itself is generated from sdkconfig.defaults, which IS tracked.
+# Committing the generated one means every developer's menuconfig state
+# fights every other developer's, and the defaults stop being the source of
+# truth for how the board is configured.
+
+# ── Python ──────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# ── Recorded sessions ───────────────────────────────────────────────────
+# Logs from the BLE client and sessions downloaded over Wi-Fi. A single
+# ten-minute session is ~6.6 MB of raw EMG and IMU; these are experimental
+# data, not source, and they belong wherever the analysis lives.
+logs/
+sessions/
+*.session/
+
+# ── KiCad ───────────────────────────────────────────────────────────────
+# KiCad writes a timestamped zip on every save. There are about forty of
+# them (~26 MB) under the schematics folder, all autosaves of files already
+# tracked — which is the whole point of tracking them.
+*-backups/
+*.kicad_pcb-bak
+*.kicad_sch-bak
+*.kicad_prl
+fp-info-cache
+\#auto_saved_files#
+*.lck
+~*.lck
+
+# ── Editors and OS ──────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp

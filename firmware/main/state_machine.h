@@ -20,6 +20,8 @@
 #define STATE_MACHINE_H
 
 #include "rehab_types.h"
+
+#include "rehab_types.h"
 #include "calibration.h"
 
 void       sm_init(void);
@@ -40,5 +42,18 @@ void sm_fault(fault_code_t code, const char *detail);
 
 /* Driven by the analysis task at FEATURE_RATE_HZ. */
 void sm_tick(uint64_t t_us);
+
+/* Fill the repetition half of a feature frame: state, count, compensation
+ * flags and whether the agonist is live.
+ *
+ * These come from the repetition cycle, which runs inside sm_tick, so the
+ * analysis task must call this AFTER sm_tick to get the current tick's values
+ * rather than the previous one's. They used to be left at zero, which meant
+ * the live frame the app renders never reported rep state or compensation at
+ * all — the two things the exercise view most needs to show.
+ *
+ * Outside OPERATIONAL this reports an idle repetition state and a zero count,
+ * because there is no set in progress to describe. */
+void sm_fill_features(features_t *f);
 
 #endif /* STATE_MACHINE_H */

@@ -31,6 +31,7 @@
 #include "rep_cycle.h"
 #include "calibration.h"
 #include "session_buffer.h"
+#include "session_xfer.h"
 #include "ble_service.h"
 #include "state_machine.h"
 #include "config.h"
@@ -118,9 +119,32 @@ extern void sm_selftest_passed(void);
 /* Shared state between the sensor tasks, double-buffered rather than locked:
  * the analysis task reads a consistent snapshot without ever blocking
  * acquisition. */
-static volatile uint32_t s_pub_index;
+/* Each producer owns its own publish index. One shared index would be written
+ * by both the DSP task and the IMU task, which is a race in itself — and the
+ * IMU half was additionally writing to the slot the analysis task was reading,
+ * so the motion state was never actually double-buffered. A torn quaternion
+ * reads as a momentary angle glitch, which looks like sensor noise rather
+ * than like a bug, so it would have been hunted in the wrong place. */
+static volatile uint32_t s_emg_pub_index;
 static emg_features_t    s_emg_pub[2];
+static volatile uint32_t s_motion_pub_index;
 static fusion_out_t      s_motion_pub[2];
+
+/* A BLE batch carries the ring index of its first sample, so the sequence
+ * number a host acknowledges means the same thing to the session buffer as it
+ * does to the stream.
+ *
+ * These used to be two independent counters: the DSP task pushed to the ring
+ * and threw away the index it got back, while the transmit task kept its own
+ * running total. They agreed exactly as long as nothing dropped — and
+ * xQueueSend() below drops silently when the queue is full, after which the
+ * transmitted numbering lagged the ring's permanently. ACK_SEQ then freed
+ * storage the host had never received, and backfill ranges pointed at the
+ * wrong samples. */
+typedef struct {
+    uint32_t    seq;
+    emg_frame_t frames[BLE_EMG_BATCH];
+} ble_emg_batch_t;
 
 static QueueHandle_t s_ble_emg_q;
 
@@ -130,10 +154,9 @@ static void emg_dsp_task(void *arg)
 {
     ESP_ERROR_CHECK(esp_task_wdt_add(NULL));
 
-    static emg_frame_t frames[EMG_DMA_FRAME_SAMPLES];
-    static emg_frame_t ble_batch[BLE_EMG_BATCH];
-    size_t  batch_n = 0;
-    uint32_t seq = 0;
+    static emg_frame_t     frames[EMG_DMA_FRAME_SAMPLES];
+    static ble_emg_batch_t pending;
+    size_t batch_n = 0;
 
     for (;;) {
         esp_task_wdt_reset();
@@ -144,22 +167,30 @@ static void emg_dsp_task(void *arg)
             continue;
         }
 
-        seq = session_buffer_push_emg(frames, n);
+        /* The ring index assigned to frames[0]. Sample i therefore lands at
+         * first + i, which is the number its BLE frame must carry. */
+        const uint32_t first = session_buffer_push_emg(frames, n);
 
         for (size_t i = 0; i < n; i++) {
             emg_features_t f;
             if (emg_dsp_push(&frames[i], &f)) {
-                const uint32_t slot = (s_pub_index + 1) & 1;
-                s_emg_pub[slot] = f;
-                s_pub_index = slot;
+                const uint32_t slot = (s_emg_pub_index + 1) & 1;
+                s_emg_pub[slot]  = f;
+                s_emg_pub_index  = slot;
             }
 
             /* Batch for BLE. The transmit path never blocks acquisition: a
-             * full queue drops the batch and the host backfills it later. */
-            ble_batch[batch_n++] = frames[i];
+             * full queue drops the batch and the host backfills it later —
+             * which now works, because the dropped batch's sequence numbers
+             * are simply absent rather than reassigned to later samples. */
+            if (batch_n == 0) {
+                pending.seq = first + (uint32_t)i;
+            }
+            pending.frames[batch_n++] = frames[i];
+
             if (batch_n >= BLE_EMG_BATCH) {
                 if (s_ble_emg_q) {
-                    xQueueSend(s_ble_emg_q, ble_batch, 0);
+                    xQueueSend(s_ble_emg_q, &pending, 0);
                 }
                 batch_n = 0;
             }
@@ -195,8 +226,11 @@ static void imu_task(void *arg)
 
         fusion_out_t m;
         fusion_get(&m);
-        const uint32_t slot = s_pub_index & 1;
-        s_motion_pub[slot] = m;
+
+        /* Fill the slot the analysis task is not reading, then publish it. */
+        const uint32_t slot = (s_motion_pub_index + 1) & 1;
+        s_motion_pub[slot]  = m;
+        s_motion_pub_index  = slot;
 
         session_buffer_push_imu(&upper, &fore);
     }
@@ -215,9 +249,8 @@ static void analysis_task(void *arg)
         esp_task_wdt_reset();
         vTaskDelayUntil(&last, pdMS_TO_TICKS(ANALYSIS_PERIOD_MS));
 
-        const uint32_t slot = s_pub_index & 1;
-        const emg_features_t emg = s_emg_pub[slot];
-        const fusion_out_t   mot = s_motion_pub[slot];
+        const emg_features_t emg = s_emg_pub[s_emg_pub_index & 1];
+        const fusion_out_t   mot = s_motion_pub[s_motion_pub_index & 1];
 
         sm_publish_inputs(&emg, &mot);
 
@@ -230,13 +263,23 @@ static void analysis_task(void *arg)
             .t_us              = now,
             .elbow_angle_deg   = mot.elbow_angle_deg,
             .upper_arm_dev_deg = mot.upper_arm_dev_deg,
-            .rep_state         = 0,
             .sig_flags         = emg.sig_flags,
         };
         for (int i = 0; i < EMG_N_CHANNELS; i++) {
             f.envelope[i] = emg.envelope[i];
             f.mdf[i]      = emg.mdf[i];
         }
+
+        /* After sm_tick, so this reports the repetition cycle's conclusions
+         * from this tick rather than the previous one. Without it rep_state,
+         * rep_count, comp_flags and activation_on all went out as zero, and
+         * the exercise view had no way to show rep progress or compensation. */
+        sm_fill_features(&f);
+
+        /* Recorded as well as transmitted. The physician view reads the
+         * device's own calculations, not a host recomputation of them. */
+        session_buffer_push_features(&f);
+
         ble_notify_features(&f, seq++);
     }
 }
@@ -245,17 +288,17 @@ static void analysis_task(void *arg)
 
 static void ble_tx_task(void *arg)
 {
-    static emg_frame_t batch[BLE_EMG_BATCH];
-    uint32_t seq = 0;
+    static ble_emg_batch_t batch;
 
     for (;;) {
-        if (xQueueReceive(s_ble_emg_q, batch, portMAX_DELAY) != pdTRUE) {
+        if (xQueueReceive(s_ble_emg_q, &batch, portMAX_DELAY) != pdTRUE) {
             continue;
         }
         /* No host subscribed is normal, not an error: a dropped link must not
-         * change anything about the exercise. */
-        ble_notify_emg(batch, BLE_EMG_BATCH, seq);
-        seq += BLE_EMG_BATCH;
+         * change anything about the exercise. The sequence travels with the
+         * batch, so it is the ring's numbering rather than a count of frames
+         * that happened to be sent. */
+        ble_notify_emg(batch.frames, BLE_EMG_BATCH, batch.seq);
     }
 }
 
@@ -292,6 +335,28 @@ static void housekeeping_task(void *arg)
         status_led_tick();
 
         if (++tick % 20 == 0) {       /* once a second */
+            /* Enforces the transfer idle timeout, so a forgotten AP does not
+             * sit up draining the battery after the laptop has wandered off. */
+            session_xfer_tick();
+
+            /* Report transfer progress while one is live, so the app can show
+             * a meaningful state rather than a spinner. */
+            xfer_status_t xs;
+            session_xfer_status(&xs);
+            if (xs.state != XFER_IDLE) {
+                xfer_info_t info = {
+                    .state             = (uint8_t)xs.state,
+                    .clients           = xs.clients,
+                    .seconds_remaining = xs.seconds_remaining,
+                    .ipv4              = xs.ipv4,
+                    .port              = XFER_HTTP_PORT,
+                    .bytes_served      = xs.bytes_served,
+                };
+                strncpy(info.ssid,     xs.ssid,     sizeof(info.ssid) - 1);
+                strncpy(info.password, xs.password, sizeof(info.password) - 1);
+                ble_notify_xfer(&info);
+            }
+
             session_stats_t st;
             session_buffer_stats(&st);
 
@@ -436,6 +501,41 @@ static void on_ble_command(uint8_t op, const uint8_t *payload, size_t len)
         }
         break;
 
+    case CMD_START_TRANSFER: {
+        /* Bring up the AP and tell the host where to fetch from. Refused
+         * while a set is running — the radio is shared and the live stream
+         * wins — and refused when there is no sealed session, because serving
+         * a buffer whose counts are still moving produces a file that is
+         * internally inconsistent. */
+        const esp_err_t xe = session_xfer_start();
+        xfer_status_t   xs;
+        session_xfer_status(&xs);
+
+        xfer_info_t info = {
+            .state             = (uint8_t)(xe == ESP_OK ? xs.state : XFER_FAILED),
+            .clients           = xs.clients,
+            .seconds_remaining = xs.seconds_remaining,
+            .ipv4              = xs.ipv4,
+            .port              = XFER_HTTP_PORT,
+            .bytes_served      = xs.bytes_served,
+        };
+        strncpy(info.ssid,     xs.ssid,     sizeof(info.ssid) - 1);
+        strncpy(info.password, xs.password, sizeof(info.password) - 1);
+        ble_notify_xfer(&info);
+
+        if (xe != ESP_OK) {
+            ESP_LOGW(TAG, "transfer refused (%s)", esp_err_to_name(xe));
+        }
+        break;
+    }
+
+    case CMD_STOP_TRANSFER: {
+        session_xfer_stop();
+        xfer_info_t info = { .state = (uint8_t)XFER_IDLE };
+        ble_notify_xfer(&info);
+        break;
+    }
+
     case CMD_POWER_OFF:
         sm_request_power_off();
         break;
@@ -493,6 +593,18 @@ void app_main(void)
     haptic_task_start();
 
     ESP_ERROR_CHECK(session_buffer_init());
+
+    /* Wi-Fi is initialised but not started: the AP comes up only between
+     * sessions, so it never contends with the live BLE stream for the single
+     * 2.4 GHz radio. Allocating its buffers now means a transfer cannot fail
+     * for memory later, which would be the worst moment to discover it. */
+    if (session_xfer_init() != ESP_OK) {
+        /* Not fatal. The device still records and still streams live; only
+         * the bulk download is unavailable, and saying so beats a boot loop. */
+        ESP_LOGE(TAG, "bulk transfer unavailable — sessions can be streamed "
+                      "but not downloaded");
+    }
+
     calibration_init();
     rep_cycle_init();
     battery_init();
@@ -517,8 +629,7 @@ void app_main(void)
     }
 
     /* ── Comms ─────────────────────────────────────────────────────── */
-    s_ble_emg_q = xQueueCreate(QUEUE_DEPTH_FRAMES,
-                               sizeof(emg_frame_t) * BLE_EMG_BATCH);
+    s_ble_emg_q = xQueueCreate(QUEUE_DEPTH_FRAMES, sizeof(ble_emg_batch_t));
     ESP_ERROR_CHECK(ble_service_init(on_ble_command));
 
     /* Load any stored profile so a returning patient skips the full

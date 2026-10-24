@@ -22,7 +22,12 @@ CONFIG_SPIRAM_USE_MALLOC=y
 # Keep small allocations in internal SRAM; tier 2 asks for PSRAM explicitly
 # with heap_caps_malloc(MALLOC_CAP_SPIRAM).
 CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=16384
-CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP=y
+# Wi-Fi and lwIP buffers stay in INTERNAL SRAM. PSRAM holds the session being
+# transferred — about 6.6 MB of the 8 — and letting the network stack allocate
+# from the same pool would run it close during exactly the operation that must
+# not fail. Internal SRAM has room once the live stream has stopped, which is
+# the only time the AP is up.
+CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP=n
 
 # ── CPU ────────────────────────────────────────────────────────────────
 CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
@@ -37,8 +42,35 @@ CONFIG_BT_NIMBLE_ROLE_CENTRAL=n
 CONFIG_BT_NIMBLE_ROLE_OBSERVER=n
 CONFIG_BT_NIMBLE_NVS_PERSIST=y
 
-# ── Wi-Fi off. It is not used, and leaving it enabled costs RAM. ───────
-CONFIG_ESP_WIFI_ENABLED=n
+# ── Wi-Fi: SoftAP for the bulk session download ────────────────────────
+#
+# Used only BETWEEN sessions. The S3 has one 2.4 GHz radio, so a saturated BLE
+# stream and an active AP would have software coexistence arbitrating between
+# them — costing throughput on both and making BLE miss connection events,
+# which is precisely the live stream that must not degrade. The AP comes up on
+# CMD_START_TRANSFER once a session is sealed and goes down when the host says
+# it has the file, or after XFER_IDLE_TIMEOUT_S with nobody joined.
+#
+# Coexistence is still compiled in: BLE stays connected during a transfer to
+# carry control traffic and progress, which is small enough to share with.
+CONFIG_ESP_WIFI_ENABLED=y
+CONFIG_ESP_COEX_SW_COEXIST_ENABLE=y
+
+# AP only. Station mode would let the sleeve upload to a clinic network
+# directly, but it needs credential provisioning and is not in this revision.
+CONFIG_ESP_WIFI_SOFTAP_SUPPORT=y
+
+# Static buffers, allocated once at init so a transfer cannot fail for memory
+# after a session has already been recorded. Modest counts: one client, a few
+# seconds of transfer, and internal SRAM to pay for it.
+CONFIG_ESP_WIFI_STATIC_RX_BUFFER_NUM=8
+CONFIG_ESP_WIFI_DYNAMIC_RX_BUFFER_NUM=16
+CONFIG_ESP_WIFI_STATIC_TX_BUFFER_NUM=8
+CONFIG_ESP_WIFI_DYNAMIC_TX_BUFFER_NUM=16
+
+# ── HTTP server for the download ───────────────────────────────────────
+CONFIG_HTTPD_MAX_REQ_HDR_LEN=1024
+CONFIG_HTTPD_MAX_URI_LEN=256
 
 # ── Watchdog: subscribes emg_dsp, imu_task and analysis ────────────────
 CONFIG_ESP_TASK_WDT_EN=y

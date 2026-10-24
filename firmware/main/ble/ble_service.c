@@ -9,6 +9,8 @@
 
 #include <string.h>
 #include <inttypes.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #include "esp_log.h"
 #include "esp_check.h"
 #include "nvs_flash.h"
@@ -42,6 +44,7 @@ static const ble_uuid128_t UUID_STATUS   = REHAB_UUID(0x0005);
 static const ble_uuid128_t UUID_BACKFILL = REHAB_UUID(0x0006);
 static const ble_uuid128_t UUID_CALIB    = REHAB_UUID(0x0007);
 static const ble_uuid128_t UUID_CONFIG   = REHAB_UUID(0x0008);
+static const ble_uuid128_t UUID_XFER     = REHAB_UUID(0x0009);
 
 static uint16_t s_conn   = BLE_HS_CONN_HANDLE_NONE;
 static uint16_t s_h_raw, s_h_events, s_h_status, s_h_backfill;
@@ -51,8 +54,43 @@ static calib_record_t   s_calib_mirror;
 static uint8_t          s_config_mirror[CFG_TLV_MAX_BYTES];
 static size_t           s_config_len;
 static uint16_t         s_config_handle;
+static xfer_info_t      s_xfer_mirror;
+static uint16_t         s_h_xfer;
 static uint8_t          s_own_addr_type;
-static uint8_t          s_txbuf[BLE_FRAME_MAX_BYTES];
+
+/* ── Transmit serialisation ──────────────────────────────────────────────
+ *
+ * Four tasks publish frames, and they do not all live on the same core:
+ * analysis runs on core 1 and calls ble_notify_features(), while ble_tx,
+ * storage and housekeeping run on core 0. A single shared scratch buffer
+ * therefore had two writers racing across cores with nothing between them,
+ * which interleaves two frames into one corrupt notification under load —
+ * rare enough to look like a flaky radio rather than a bug.
+ *
+ * A mutex rather than per-task buffers: the frames are up to 180 bytes each
+ * and the critical section is a memcpy plus one NimBLE call, so contention is
+ * negligible and the memory stays in one place. Held across the notify so the
+ * buffer cannot be reused while the stack is still reading it.
+ *
+ * Timeout rather than portMAX_DELAY: a publisher that cannot get the lock
+ * promptly should drop its frame and let the host backfill, never stall the
+ * task it runs on. The analysis task in particular must keep its 20 ms tick.
+ * ──────────────────────────────────────────────────────────────────────── */
+static SemaphoreHandle_t s_tx_lock;
+static uint8_t           s_txbuf[BLE_FRAME_MAX_BYTES];
+
+#define TX_LOCK_TIMEOUT_MS   5
+
+static inline bool tx_lock(void)
+{
+    return s_tx_lock &&
+           xSemaphoreTake(s_tx_lock, pdMS_TO_TICKS(TX_LOCK_TIMEOUT_MS)) == pdTRUE;
+}
+
+static inline void tx_unlock(void)
+{
+    xSemaphoreGive(s_tx_lock);
+}
 
 /* ── Characteristic access ───────────────────────────────────────────── */
 
@@ -117,6 +155,18 @@ static int gatt_access(uint16_t conn, uint16_t attr,
              ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
     }
 
+    if (ble_uuid_cmp(uuid, &UUID_XFER.u) == 0) {
+        if (ctxt->op != BLE_GATT_ACCESS_OP_READ_CHR) {
+            return BLE_ATT_ERR_UNLIKELY;
+        }
+        /* Readable as well as notified, so a host that reconnects partway
+         * through a transfer can recover the credentials without asking the
+         * device to tear the AP down and start again. */
+        return os_mbuf_append(ctxt->om, &s_xfer_mirror,
+                              sizeof(s_xfer_mirror)) == 0
+             ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+    }
+
     return BLE_ATT_ERR_UNLIKELY;
 }
 
@@ -151,6 +201,10 @@ static const struct ble_gatt_svc_def s_svcs[] = {
             { .uuid = &UUID_CALIB.u,
               .access_cb = gatt_access,
               .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE },
+            { .uuid = &UUID_XFER.u,
+              .access_cb = gatt_access,
+              .val_handle = &s_h_xfer,
+              .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY },
             { 0 }
         },
     },
@@ -240,6 +294,9 @@ esp_err_t ble_service_init(ble_command_cb_t on_command)
 {
     s_on_command = on_command;
 
+    s_tx_lock = xSemaphoreCreateMutex();
+    ESP_RETURN_ON_FALSE(s_tx_lock, ESP_ERR_NO_MEM, TAG, "tx mutex");
+
     ESP_RETURN_ON_ERROR(nimble_port_init(), TAG, "nimble init");
 
     ble_hs_cfg.sync_cb = on_sync;
@@ -287,6 +344,9 @@ static size_t put_header(uint8_t type, uint32_t seq, uint64_t t_us, uint8_t n)
 esp_err_t ble_notify_emg(const emg_frame_t *frames, size_t n, uint32_t seq)
 {
     if (n > BLE_EMG_BATCH) n = BLE_EMG_BATCH;
+    if (!tx_lock()) {
+        return ESP_ERR_TIMEOUT;     /* host backfills; never stall acquisition */
+    }
 
     size_t off = put_header(FRAME_TYPE_EMG, seq,
                             n ? frames[0].t_us : 0, (uint8_t)n);
@@ -301,13 +361,18 @@ esp_err_t ble_notify_emg(const emg_frame_t *frames, size_t n, uint32_t seq)
             off += sizeof(s);
         }
     }
-    return notify(s_h_raw, s_txbuf, off);
+    const esp_err_t r = notify(s_h_raw, s_txbuf, off);
+    tx_unlock();
+    return r;
 }
 
 esp_err_t ble_notify_imu(const imu_sample_t *upper, const imu_sample_t *fore,
                          size_t n, uint32_t seq)
 {
     if (n > BLE_IMU_BATCH) n = BLE_IMU_BATCH;
+    if (!tx_lock()) {
+        return ESP_ERR_TIMEOUT;
+    }
 
     size_t off = put_header(FRAME_TYPE_IMU, seq,
                             n ? upper[0].t_us : 0, (uint8_t)n);
@@ -325,19 +390,29 @@ esp_err_t ble_notify_imu(const imu_sample_t *upper, const imu_sample_t *fore,
             }
         }
     }
-    return notify(s_h_raw, s_txbuf, off);
+    const esp_err_t r = notify(s_h_raw, s_txbuf, off);
+    tx_unlock();
+    return r;
 }
 
 esp_err_t ble_notify_features(const features_t *f, uint32_t seq)
 {
+    if (!tx_lock()) {
+        return ESP_ERR_TIMEOUT;
+    }
     size_t off = put_header(FRAME_TYPE_FEATURES, seq, f->t_us, 1);
     memcpy(&s_txbuf[off], f, sizeof(*f));
     off += sizeof(*f);
-    return notify(s_h_events, s_txbuf, off);
+    const esp_err_t r = notify(s_h_events, s_txbuf, off);
+    tx_unlock();
+    return r;
 }
 
 esp_err_t ble_notify_event(const rehab_event_t *evt)
 {
+    if (!tx_lock()) {
+        return ESP_ERR_TIMEOUT;
+    }
     size_t off = put_header(FRAME_TYPE_EVENT, 0, evt->t_us, 1);
     s_txbuf[off++] = evt->id;
     s_txbuf[off++] = evt->payload_len;
@@ -345,7 +420,9 @@ esp_err_t ble_notify_event(const rehab_event_t *evt)
         memcpy(&s_txbuf[off], evt->payload, evt->payload_len);
         off += evt->payload_len;
     }
-    return notify(s_h_events, s_txbuf, off);
+    const esp_err_t r = notify(s_h_events, s_txbuf, off);
+    tx_unlock();
+    return r;
 }
 
 /* Serialised configuration, for GET_CONFIG. The host reads this back to
@@ -365,6 +442,9 @@ esp_err_t ble_notify_config(const uint8_t *tlv, size_t len)
 esp_err_t ble_notify_backfill(const emg_frame_t *frames, size_t n, uint32_t seq)
 {
     if (n > BLE_EMG_BATCH) n = BLE_EMG_BATCH;
+    if (!tx_lock()) {
+        return ESP_ERR_TIMEOUT;
+    }
 
     size_t off = put_header(FRAME_TYPE_EMG, seq,
                             n ? frames[0].t_us : 0, (uint8_t)n);
@@ -377,7 +457,19 @@ esp_err_t ble_notify_backfill(const emg_frame_t *frames, size_t n, uint32_t seq)
     }
     /* Served on its own characteristic at lower priority, so catching up
      * never stalls the live stream. */
-    return notify(s_h_backfill, s_txbuf, off);
+    const esp_err_t r = notify(s_h_backfill, s_txbuf, off);
+    tx_unlock();
+    return r;
+}
+
+/* Mirrored as well as notified: the characteristic is readable so a host that
+ * reconnects mid-transfer recovers the credentials rather than forcing a
+ * restart. Does not take the tx lock — it has its own buffer, and the frame
+ * is small enough that there is nothing to share. */
+esp_err_t ble_notify_xfer(const xfer_info_t *info)
+{
+    s_xfer_mirror = *info;
+    return notify(s_h_xfer, &s_xfer_mirror, sizeof(s_xfer_mirror));
 }
 
 void ble_update_status(const device_status_t *status)

@@ -40,6 +40,26 @@ static bool         s_fatigue_cued;
 static emg_features_t s_emg;
 static fusion_out_t   s_motion;
 
+/* The most recent repetition tick, so the feature frame can report what the
+ * repetition cycle currently believes. Refreshed every operational tick and
+ * cleared when a set begins or ends. */
+static rep_tick_t     s_last_rep;
+
+void sm_fill_features(features_t *f)
+{
+    if (s_state != FW_STATE_OPERATIONAL) {
+        f->rep_state     = (uint8_t)REP_READY;
+        f->rep_count     = 0;
+        f->comp_flags    = 0;
+        f->activation_on = 0;
+        return;
+    }
+    f->rep_state     = (uint8_t)s_last_rep.state;
+    f->rep_count     = s_last_rep.rep_count;
+    f->comp_flags    = s_last_rep.comp_flags;
+    f->activation_on = s_last_rep.activation_on ? 1 : 0;
+}
+
 void sm_publish_inputs(const emg_features_t *e, const fusion_out_t *m)
 {
     s_emg    = *e;
@@ -53,6 +73,12 @@ static void emit(event_id_t id, const void *payload, size_t len)
         memcpy(evt.payload, payload, len);
         evt.payload_len = (uint8_t)len;
     }
+
+    /* Recorded before it is transmitted, and recorded whether or not anyone is
+     * listening. An event that exists only as a notification is lost to a
+     * dropped link, and the event log is what the physician view reads to
+     * explain why a repetition scored the way it did. */
+    session_buffer_push_event(&evt);
     ble_notify_event(&evt);
 }
 
@@ -255,6 +281,7 @@ static void tick_calibration(uint64_t t_us)
 
         s_fatigue_cued      = false;
         s_wrong_pos_last_us = 0;
+        memset(&s_last_rep, 0, sizeof(s_last_rep));
         rep_cycle_begin_set();
         session_buffer_begin();
         transition(FW_STATE_OPERATIONAL);
@@ -265,6 +292,10 @@ static void tick_operational(uint64_t t_us)
 {
     rep_tick_t rt;
     rep_cycle_tick(&s_motion, &s_emg, t_us, &rt);
+
+    /* Snapshot for the feature frame the analysis task builds immediately
+     * after this returns. */
+    s_last_rep = rt;
 
     switch (rt.event) {
 
@@ -284,6 +315,12 @@ static void tick_operational(uint64_t t_us)
             haptic_play(rt.comp_flags ? PATTERN_REP_FLAGGED
                                       : PATTERN_REP_CLEAN);
         }
+
+        /* The full result goes to the session record; the BLE event carries
+         * only the first 16 bytes, because rehab_event_t's payload is that
+         * size. The app shows the headline from the event, the physician view
+         * reads the complete record from the downloaded session. */
+        session_buffer_push_rep(&rt.result);
 
         emit(EVT_REP_COMPLETE, &rt.result, sizeof(rt.result) > 16
                                            ? 16 : sizeof(rt.result));

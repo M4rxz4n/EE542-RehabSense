@@ -18,6 +18,7 @@ idf_component_register(
         "rep/grading.c"
         "ble/ble_service.c"
         "storage/session_buffer.c"
+        "net/session_xfer.c"
         "ui/status_led.c"
     INCLUDE_DIRS
         "."
@@ -27,6 +28,7 @@ idf_component_register(
         "rep"
         "ble"
         "storage"
+        "net"
         "ui"
     REQUIRES
         esp_adc
@@ -39,6 +41,10 @@ idf_component_register(
         esp_psram
         nvs_flash
         bt
+        esp_wifi
+        esp_netif
+        esp_event
+        esp_http_server
         espressif__esp-dsp
         espressif__led_strip
 )

@@ -400,6 +400,70 @@
 #define TIER2_EMG_SAMPLES      (EMG_SAMPLE_RATE_HZ * TIER2_SECONDS)
 #define TIER1_IMU_SAMPLES      (IMU_SAMPLE_RATE_HZ * TIER1_SECONDS)
 #define TIER2_IMU_SAMPLES      (IMU_SAMPLE_RATE_HZ * TIER2_SECONDS)
+#define TIER1_FEATURE_SAMPLES  (FEATURE_RATE_HZ * TIER1_SECONDS)
+#define TIER2_FEATURE_SAMPLES  (FEATURE_RATE_HZ * TIER2_SECONDS)
+
+/* Event and repetition logs are bounded by count, not by seconds: they are
+ * sparse, and sizing them off the clock would allocate for a rate that cannot
+ * happen. 2048 events is roughly one every 300 ms for the full ten minutes,
+ * well past what a real set produces; 256 repetitions is far past the 3 × 20
+ * the protocol prescribes. Both wrap rather than drop, and a wrap raises the
+ * gap flag like any other. */
+#define TIER2_EVENT_RECORDS    2048
+#define TIER2_REP_RECORDS      256
+
+/* ── PSRAM budget ────────────────────────────────────────────────────────
+ *
+ * The module is an N8R8: 8 MB octal PSRAM. At TIER2_SECONDS = 600 the five
+ * rings come to roughly
+ *
+ *   EMG       2000 Hz × 600 s ×  4 B = 4.58 MiB
+ *   IMU        100 Hz × 600 s × 24 B = 1.37 MiB
+ *   Features    50 Hz × 600 s × 22 B = 0.63 MiB
+ *   Events           2048    × 22 B  = 44 kB
+ *   Repetitions       256    × 28 B  = 7 kB
+ *                                    ─────────
+ *                                      6.63 MiB
+ *
+ * leaving about 1.3 MiB. That headroom is why
+ * CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP is now OFF in sdkconfig.defaults: the
+ * Wi-Fi stack would otherwise take its buffers from the same pool that holds
+ * the session being transferred, and run the allocation close during exactly
+ * the operation that must not fail. Wi-Fi buffers come from internal SRAM,
+ * which has room once the live stream has stopped.
+ *
+ * session_buffer_init() logs the actual free figure at boot. Trust that over
+ * this comment.
+ * ──────────────────────────────────────────────────────────────────────── */
+#define TIER2_BUDGET_BYTES                                                \
+    ((size_t)TIER2_EMG_SAMPLES     * 2 * EMG_N_CHANNELS +                 \
+     (size_t)TIER2_IMU_SAMPLES     * 24 +                                 \
+     (size_t)TIER2_FEATURE_SAMPLES * (14 + 4 * EMG_N_CHANNELS) +          \
+     (size_t)TIER2_EVENT_RECORDS   * 22 +                                 \
+     (size_t)TIER2_REP_RECORDS     * 28)
+
+_Static_assert(TIER2_BUDGET_BYTES < 7u * 1024u * 1024u,
+               "tier 2 leaves under 1 MB of PSRAM — lower TIER2_SECONDS or "
+               "drop a stream before the Wi-Fi stack has nowhere to live");
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Wi-Fi bulk transfer
+ *
+ * The AP is up only between sessions, so none of this competes with the live
+ * BLE stream for the single 2.4 GHz radio. Channel 1 is a fixed choice rather
+ * than a scan: the link lives for seconds at a time, a metre from its client,
+ * and a scan would cost more than the interference it avoids.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+#define XFER_SSID_PREFIX       "RehabSense"
+#define XFER_PASSWORD_LEN      12       /* WPA2 needs ≥ 8 */
+#define XFER_AP_CHANNEL        1
+#define XFER_HTTP_PORT         80
+
+/* How long the AP waits for a client before giving up. Long enough for someone
+ * to walk to the laptop and pick the network, short enough that a forgotten
+ * transfer does not sit there draining the battery. */
+#define XFER_IDLE_TIMEOUT_S    180
 
 /* ────────────────────────────────────────────────────────────────────────
  * Battery

@@ -26,6 +26,7 @@ UUID_STATUS = BASE.format(0x0005)
 UUID_BACKFILL = BASE.format(0x0006)
 UUID_CALIB = BASE.format(0x0007)
 UUID_CONFIG = BASE.format(0x0008)   # serialised TLV, read + notify
+UUID_XFER = BASE.format(0x0009)     # bulk-transfer credentials, read + notify
 
 DEVICE_NAME = "RehabSense"
 
@@ -75,6 +76,12 @@ class Cmd(IntEnum):
     HAPTIC_TEST = 0x0A
     SET_TIME = 0x0B
     POWER_OFF = 0x0C
+    # Bulk transfer over Wi-Fi [firmware/main/net/session_xfer.h]. START
+    # brings up the sleeve's SoftAP and answers on UUID_XFER with the SSID,
+    # password and address; the session itself is fetched by rehab_fetch.py
+    # over HTTP, not over BLE.
+    START_TRANSFER = 0x0D
+    STOP_TRANSFER = 0x0E
 
 
 class Event(IntEnum):
@@ -381,6 +388,80 @@ STATUS = struct.Struct("<BBBH" + f"{EMG_N_CHANNELS}B" + "II"
 assert STATUS.size == 24 + 5 * EMG_N_CHANNELS, (
     f"device_status_t is {24 + 5 * EMG_N_CHANNELS} B packed, "
     f"not {STATUS.size}")
+
+
+# ── Bulk-transfer credentials, characteristic 0x0009 ────────────────────
+#
+# xfer_info_t in ble_service.h, packed, 63 bytes. Notified in answer to
+# START_TRANSFER and again once a second while a transfer is live, and
+# readable at any time so a client that reconnects mid-transfer recovers the
+# credentials instead of forcing the device to tear the AP down and start over.
+
+XFER = struct.Struct("<BBHIHI33s16s")
+assert XFER.size == 63, f"xfer_info_t is 63 B packed, not {XFER.size}"
+
+
+class XferState(IntEnum):
+    IDLE = 0
+    STARTING = 1
+    READY = 2
+    COMPLETE = 3
+    FAILED = 4
+
+
+@dataclass
+class XferInfo:
+    """Where to fetch the session from, once the AP is up.
+
+    `state` READY means the access point is live and the HTTP server is
+    answering. FAILED means the device refused — almost always because a set
+    is still running, or because no session has been sealed yet.
+    """
+
+    state: int
+    clients: int
+    seconds_remaining: int
+    ipv4: str
+    port: int
+    bytes_served: int
+    ssid: str
+    password: str
+
+    @property
+    def state_name(self) -> str:
+        try:
+            return XferState(self.state).name
+        except ValueError:
+            return f"UNKNOWN_{self.state}"
+
+    @property
+    def ready(self) -> bool:
+        return self.state == XferState.READY
+
+    def join_hint(self) -> str:
+        """What to tell the operator, in one line."""
+        if not self.ready:
+            return f"transfer {self.state_name.lower()}"
+        return (f"join Wi-Fi \"{self.ssid}\" (password {self.password}), "
+                f"then: python rehab_fetch.py --host {self.ipv4}")
+
+
+def parse_xfer(data: bytes) -> XferInfo:
+    (state, clients, secs, ipv4, port,
+     served, ssid, password) = XFER.unpack(data[:XFER.size])
+    # The device stores the AP address in network byte order, as the lwIP
+    # netif reports it; rendering it here keeps the dotted form in one place.
+    octets = ".".join(str((ipv4 >> (8 * i)) & 0xFF) for i in range(4))
+    return XferInfo(
+        state=state,
+        clients=clients,
+        seconds_remaining=secs,
+        ipv4=octets,
+        port=port,
+        bytes_served=served,
+        ssid=ssid.split(b"\0")[0].decode("ascii", "replace"),
+        password=password.split(b"\0")[0].decode("ascii", "replace"),
+    )
 
 
 @dataclass
@@ -756,3 +837,20 @@ def cmd_set_time(epoch_us: int) -> bytes:
 
 def cmd_power_off() -> bytes:
     return bytes([Cmd.POWER_OFF])
+
+
+def cmd_start_transfer() -> bytes:
+    """Bring up the Wi-Fi AP so the session can be downloaded.
+
+    Refused by the device while a set is running: the S3 has one 2.4 GHz
+    radio and the live BLE stream wins. Refused too when no session has been
+    sealed, because serving a buffer whose counts are still moving produces a
+    file that is internally inconsistent.
+
+    The answer arrives on UUID_XFER as an XferInfo.
+    """
+    return bytes([Cmd.START_TRANSFER])
+
+
+def cmd_stop_transfer() -> bytes:
+    return bytes([Cmd.STOP_TRANSFER])
