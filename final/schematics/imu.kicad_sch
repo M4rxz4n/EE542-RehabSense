@@ -1783,7 +1783,6 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(fields_autoplaced yes)
 		(uuid "6c7c5c72-c498-4342-b9a3-9d0088475d6f")
 		(property "Reference" "#PWR07"
 			(at 212.09 72.39 0)
@@ -1796,14 +1795,15 @@
 				)
 			)
 		)
-		(property "Value" "+3V3"
-			(at 212.09 63.5 0)
+		(property "Value" "+3V3D"
+			(at 208.534 64.516 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+				(justify left)
 			)
 		)
 		(property "Footprint" ""
@@ -1884,7 +1884,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
 			(at 68.072 96.52 90)
 			(hide yes)
 			(show_name no)
@@ -1966,7 +1966,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
 			(at 230.8352 80.01 0)
 			(hide yes)
 			(show_name no)
@@ -2048,7 +2048,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
 			(at 216.8652 80.01 0)
 			(hide yes)
 			(show_name no)
@@ -2106,7 +2106,6 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(fields_autoplaced yes)
 		(uuid "b32ba541-5adf-452d-9e77-f897b4763fa4")
 		(property "Reference" "#PWR09"
 			(at 166.37 85.09 0)
@@ -2119,14 +2118,15 @@
 				)
 			)
 		)
-		(property "Value" "+3V3"
-			(at 166.37 76.2 0)
+		(property "Value" "+3V3D"
+			(at 162.56 76.708 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+				(justify left)
 			)
 		)
 		(property "Footprint" ""
@@ -2184,7 +2184,6 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(fields_autoplaced yes)
 		(uuid "b40a91a9-efef-45f3-8f54-9de1db9c2a32")
 		(property "Reference" "#PWR01"
 			(at 110.49 72.39 0)
@@ -2197,14 +2196,15 @@
 				)
 			)
 		)
-		(property "Value" "+3V3"
-			(at 110.49 63.5 0)
+		(property "Value" "+3V3D"
+			(at 106.934 64.77 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+				(justify left)
 			)
 		)
 		(property "Footprint" ""
@@ -2286,7 +2286,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
 			(at 115.2652 80.01 0)
 			(hide yes)
 			(show_name no)
@@ -2445,7 +2445,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
 			(at 168.148 86.36 90)
 			(hide yes)
 			(show_name no)
@@ -2527,7 +2527,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
 			(at 129.2352 80.01 0)
 			(hide yes)
 			(show_name no)

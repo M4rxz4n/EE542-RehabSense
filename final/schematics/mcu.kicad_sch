@@ -1152,14 +1152,15 @@
 				)
 			)
 		)
-		(property "Value" "+3V3"
-			(at 86.36 63.5 0)
+		(property "Value" "+3V3D"
+			(at 88.9 67.3099 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+				(justify left)
 			)
 		)
 		(property "Footprint" ""
@@ -1240,7 +1241,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
 			(at 92.202 74.93 90)
 			(hide yes)
 			(show_name no)
@@ -1321,7 +1322,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
 			(at 84.582 74.93 90)
 			(hide yes)
 			(show_name no)
