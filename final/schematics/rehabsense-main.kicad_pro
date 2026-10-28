@@ -750,7 +750,7 @@
         "uuid": "b751250a-7d43-475a-8447-686d399cd67b"
       }
     ],
-    "used_designators": "U1-14,L1-4,#PWR1-69,C1-48,J1,R1-41,JP1-4",
+    "used_designators": "U1-14,L1-4,#PWR1-69,C1-48,J1-3,R1-48,JP1-6,TP1-22",
     "variants": []
   },
   "sheets": [
