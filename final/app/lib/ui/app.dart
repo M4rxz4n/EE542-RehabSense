@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import '../ble/permissions.dart';
 import '../ble/rehab_device.dart';
 import '../session/session_state.dart';
+import '../sim/demo_driver.dart';
 import 'calibration_screen.dart';
 import 'clinician_screen.dart';
 import 'patient_screen.dart';
@@ -32,6 +33,7 @@ class _AppShellState extends State<AppShell> {
   int _tab = 0;
   bool _connecting = false;
   StreamSubscription<String>? _problemSub;
+  DemoDriver? _demo;
 
   @override
   void initState() {
@@ -57,7 +59,18 @@ class _AppShellState extends State<AppShell> {
   @override
   void dispose() {
     _problemSub?.cancel();
+    _demo?.dispose();
     super.dispose();
+  }
+
+  void _toggleDemo() {
+    if (_demo != null) {
+      _demo!.stop();
+      _demo = null;
+    } else {
+      _demo = DemoDriver(widget.device)..start();
+    }
+    setState(() {});
   }
 
   Future<void> _connect() async {
@@ -109,6 +122,21 @@ class _AppShellState extends State<AppShell> {
         final live = widget.state.linkState.isLive;
 
         return Scaffold(
+          appBar: _demo != null
+              ? AppBar(
+                  backgroundColor: RehabColors.warn.withValues(alpha: 0.16),
+                  toolbarHeight: 38,
+                  title: Text('DEMO MODE — synthetic data, no sleeve',
+                      style: RehabText.label
+                          .copyWith(color: RehabColors.warn)),
+                  actions: [
+                    TextButton(
+                      onPressed: _toggleDemo,
+                      child: const Text('Exit'),
+                    ),
+                  ],
+                )
+              : null,
           body: live
               ? _body()
               : _ConnectPane(
@@ -116,6 +144,7 @@ class _AppShellState extends State<AppShell> {
                   connecting:
                       _connecting || widget.state.linkState.isBusy,
                   onConnect: _connect,
+                  onDemo: _toggleDemo,
                 ),
           bottomNavigationBar: live
               ? NavigationBar(
@@ -162,11 +191,13 @@ class _ConnectPane extends StatelessWidget {
     required this.state,
     required this.connecting,
     required this.onConnect,
+    required this.onDemo,
   });
 
   final SessionState state;
   final bool connecting;
   final VoidCallback onConnect;
+  final VoidCallback onDemo;
 
   @override
   Widget build(BuildContext context) {
@@ -248,6 +279,30 @@ class _ConnectPane extends StatelessWidget {
               Text(state.problems.last,
                   style: RehabText.body
                       .copyWith(color: RehabColors.warn, fontSize: 13)),
+            ],
+
+            // No sleeve to hand. Every screen past this one needs a live
+            // link, so without this there is nothing to look at and no way
+            // to work on the UI away from the hardware.
+            if (!connecting) ...[
+              const SizedBox(height: 28),
+              const Divider(),
+              const SizedBox(height: 18),
+              Text('NO SLEEVE HERE?', style: RehabText.label),
+              const SizedBox(height: 8),
+              Text(
+                'Demo mode drives the app with synthetic frames in the real '
+                'wire format. The movement, scoring, compensation and fatigue '
+                'all behave like a session. It proves nothing about Bluetooth '
+                'itself.',
+                style: RehabText.body.copyWith(fontSize: 13.5),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: onDemo,
+                icon: const Icon(Icons.play_circle_outline, size: 18),
+                label: const Text('Start demo mode'),
+              ),
             ],
           ],
         ),

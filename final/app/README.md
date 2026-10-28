@@ -32,22 +32,28 @@ works.
 
 ### Android — works from Windows, macOS or Linux
 
+PowerShell, and commit first — step 1 overwrites files that only git can put
+back:
+
 ```powershell
+git add -A; git commit -m "Flutter host"
 cd final\app
 
 # 1. Generate the platform scaffolding. Only needed once, on a fresh clone
-#    that has no android/ directory. It will overwrite lib/main.dart,
+#    that has no android/ directory. It overwrites lib/main.dart,
 #    pubspec.yaml and README.md with placeholders, so put ours back after.
-flutter create --org edu.usc.rehabsense --platforms=android,ios .
-git checkout -- lib pubspec.yaml README.md
-Remove-Item -Force test\widget_test.dart -ErrorAction SilentlyContinue
+flutter create --org edu.usc.cse475 --platforms=android,ios .
+git checkout -- lib pubspec.yaml README.md SETUP.md
+Remove-Item test\widget_test.dart -Force -ErrorAction SilentlyContinue
 
 # 2. Apply the platform patches. Without these a BLE scan returns zero
 #    devices and tells you nothing about why.
 Copy-Item platform\AndroidManifest.xml android\app\src\main\AndroidManifest.xml -Force
 #    iOS: follow platform/ios-Info.plist.patch.md
 
-# 3. Build and run
+# 3. Build and run. pub get is NOT redundant after step 1: flutter create
+#    resolved against its own placeholder pubspec, which the checkout
+#    replaced.
 flutter pub get
 flutter test
 flutter devices
@@ -216,6 +222,7 @@ connect BLE  →  SET_TIME  →  GET_CONFIG  →  calibration (6 steps)
 | Live parameter editing | written |
 | Clinician bridge | written |
 | Session fetch | written |
+| Demo mode (synthetic sleeve) | written |
 | **Any of it against real hardware** | **not yet — see below** |
 
 ### Nothing here has run yet
@@ -237,6 +244,38 @@ First bring-up, in this order:
 3. `flutter run`, connect, and watch the Settings tab: it shows the negotiated
    MTU, frames received, and what has been acknowledged. If the MTU comes back
    under 183 the raw stream will not fit.
+
+## Working without a sleeve
+
+Every screen past the connect pane needs a live link, so with no hardware the
+app opens and stops there. **Demo mode** is the way round that: the button is
+on the connect screen, below the divider.
+
+`lib/sim/demo_driver.dart` builds real wire-format frames with the same
+builders the golden tests use and pushes them through
+`RehabDevice.injectNotification`, so they run the same decoders, the same
+sequence tracker and the same session state as a real sleeve. Nothing above
+the radio is stubbed — if the `features_t` padding were wrong, demo mode would
+show wrong rep counts too.
+
+The set is scripted so the interesting cases show up rather than twenty
+identical reps:
+
+- median frequency falling across the set, with the rest cue once it has
+  fallen far enough
+- every fifth rep hikes the shoulder: flagged live, named on screen, scored
+  down (demo item 3)
+- rep four is a passive swing — the angle rises with the biceps quiet, so no
+  rep starts (demo item 4)
+- `START_TRANSFER` during a set is refused, the way the firmware refuses it
+
+Changing the confirming hold in Settings visibly changes the demo's cadence,
+which is a quick way to see the live-parameter path work (demo item 6). The
+seed is fixed, so a rehearsed walkthrough behaves the same every time.
+
+What it cannot tell you: anything about platform BLE behaviour, connection
+intervals, permissions, MTU negotiation or throughput. Those are exactly the
+things the PRD says stay phone-side work against real hardware.
 
 `EVT_REP_COMPLETE` is **not yet emitted by the firmware**. `rep_cycle.c`
 produces a `rep_result_t` and the event path can carry 16 payload bytes, but

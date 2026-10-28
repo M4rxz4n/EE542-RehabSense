@@ -107,6 +107,17 @@ class RehabDevice {
   final SeqTracker seq = SeqTracker();
   int _lastAcked = -1;
 
+  /// Demo mode: no radio involved. Commands are handed to [onDemoCommand]
+  /// instead of being written to a characteristic, and notifications are
+  /// pushed in through [injectNotification].
+  ///
+  /// Worth noting what this does NOT bypass: the synthetic frames go through
+  /// the same decoders, the same sequence tracker and the same session state
+  /// as real ones. So the demo exercises the wire format end to end rather
+  /// than faking the layer above it.
+  bool demoMode = false;
+  void Function(Uint8List payload)? onDemoCommand;
+
   int negotiatedMtu = 0;
   String deviceId = '';
   String deviceName = '';
@@ -482,6 +493,10 @@ class RehabDevice {
   // ── Commands ───────────────────────────────────────────────────────────
 
   Future<bool> _write(Uint8List payload) async {
+    if (demoMode) {
+      onDemoCommand?.call(payload);
+      return true;
+    }
     final c = _char(kUuidControl);
     if (c == null) {
       _complain('Not connected; command dropped.');
@@ -592,6 +607,53 @@ class RehabDevice {
     } catch (e) {
       _complain('Calibration write failed: $e');
       return false;
+    }
+  }
+
+  // ── Demo mode ──────────────────────────────────────────────────────────
+
+  /// Bring the link up without a sleeve. See `sim/demo_driver.dart`.
+  void beginDemo({String name = 'RehabSense (demo)'}) {
+    demoMode = true;
+    deviceId = 'demo';
+    deviceName = name;
+    // What iOS negotiates on its own, so the Settings tab reads plausibly.
+    negotiatedMtu = 247;
+    seq.reset();
+    _lastAcked = -1;
+    _setState(LinkState.ready);
+  }
+
+  void endDemo() {
+    demoMode = false;
+    onDemoCommand = null;
+    _setState(LinkState.idle);
+  }
+
+  /// Feed a notification into the decode path as though it had arrived over
+  /// BLE, routed by characteristic UUID exactly as a real subscription would.
+  void injectNotification(String uuid, Uint8List bytes) {
+    final u = uuid.toLowerCase();
+    try {
+      if (u == kUuidEvents.toLowerCase()) {
+        _onEventsValue(bytes);
+      } else if (u == kUuidStatus.toLowerCase()) {
+        _onStatusValue(bytes);
+      } else if (u == kUuidConfig.toLowerCase()) {
+        _onConfigValue(bytes);
+      } else if (u == kUuidCalib.toLowerCase()) {
+        if (!_calib.isClosed) _calib.add(CalibRecord.parse(bytes));
+      } else if (u == kUuidXfer.toLowerCase()) {
+        _onXferValue(bytes);
+      } else if (u == kUuidRaw.toLowerCase()) {
+        _onRawValue(bytes);
+      } else if (u == kUuidBackfill.toLowerCase()) {
+        _onBackfillValue(bytes);
+      } else {
+        _complain('Injected a frame for an unknown characteristic $uuid.');
+      }
+    } catch (e) {
+      _complain('$e');
     }
   }
 

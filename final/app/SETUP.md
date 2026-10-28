@@ -1,8 +1,11 @@
 # Toolchain setup
 
 Nothing in `final/app` can be built until the Flutter SDK and the Android SDK
-are on the machine. Neither is installed on `clanker` as of 28 October 2026 —
-`flutter` is not on PATH and there is no `AppData\Local\Android\Sdk`.
+are on the machine.
+
+State on `clanker` as of 28 October 2026: the **Flutter SDK is extracted** (see
+the next section for where, and for the PATH entry it needs). The **Android SDK
+is not installed** — there is no `AppData\Local\Android\Sdk`.
 
 Already present and reused below: **Git** (`C:\Program Files\Git`), **Node**,
 and a **JDK** (`C:\Program Files\Eclipse Adoptium`). Android Studio brings its
@@ -13,7 +16,61 @@ the Android SDK components another 2–3 GB.
 
 ---
 
-## The short path: let VS Code do it
+## Where it actually is on `clanker`
+
+The SDK is already extracted at:
+
+```
+C:\RESOURCES\apps\flutter\flutter
+```
+
+so the directory that belongs on PATH is:
+
+```
+C:\RESOURCES\apps\flutter\flutter\bin
+```
+
+Note the doubled `flutter\flutter`. The zip contains its own top-level
+`flutter` folder, so extracting it into `C:\RESOURCES\apps\flutter` nests it
+one level deeper than every example in the Flutter docs. Copying the docs'
+example PATH entry (`%USERPROFILE%\develop\flutter\bin`) points at nothing
+and presents as "PATH setup didn't work" — which is exactly what happened on
+28 October.
+
+Set it from PowerShell rather than the GUI:
+
+```powershell
+$bin  = 'C:\RESOURCES\apps\flutter\flutter\bin'
+$user = [Environment]::GetEnvironmentVariable('Path','User')
+if (-not $user) { $user = '' }
+if ($user -notlike "*$bin*") {
+  [Environment]::SetEnvironmentVariable('Path', ($bin + ';' + $user).TrimEnd(';'), 'User')
+}
+$env:Path = "$bin;$env:Path"
+flutter --version
+```
+
+Two reasons to prefer that over the Environment Variables dialog:
+
+- `GetEnvironmentVariable('Path','User')` reads only the **user** PATH.
+  `$env:Path` is the machine and user PATHs already merged, so building a new
+  user PATH from it silently copies the entire machine PATH into your user
+  entry.
+- Setting it programmatically avoids the `REG_SZ` versus `REG_EXPAND_SZ`
+  distinction that stops `%USERPROFILE%`-style entries from expanding.
+
+The last two lines patch the running session too, so there is no need to
+reopen a terminal just to check. First `flutter --version` takes a minute or
+two while it bootstraps its bundled Dart SDK — that is not a hang.
+
+If `flutter` is still not recognised after this, check that
+`C:\RESOURCES\apps\flutter\flutter\bin\flutter.bat` exists. If it is
+missing, antivirus quarantined it during extraction: trust the folder and
+extract again.
+
+---
+
+## The short path, for a fresh machine: let VS Code do it
 
 VS Code is already installed, and this is the route Flutter's own docs
 recommend over the manual one.
@@ -135,20 +192,34 @@ all, install the manufacturer's USB driver.
 
 ## Then build this project
 
-```bat
-cd C:\AREAS\skool\Q5\cse475\EE542-RehabSense\final\app
+**Commit before you start.** `flutter create` overwrites `lib/main.dart`,
+`pubspec.yaml` and `README.md` with placeholders. The `git checkout` below is
+what puts ours back, and it can only do that if they are committed first.
 
-rem Generate the platform scaffolding. Once only, on a clone with no android\.
-rem It overwrites lib\main.dart, pubspec.yaml and README.md with placeholders,
-rem so git restores ours straight after.
-flutter create --org edu.usc.rehabsense --platforms=android,ios .
-git checkout -- lib pubspec.yaml README.md
-del /q test\widget_test.dart
+These are **PowerShell** commands. If you are in `cmd` instead, swap
+`Remove-Item x -Force` for `del /q x` and `Copy-Item a b -Force` for
+`copy /y a b` — mixing the two is how this goes wrong, since PowerShell
+aliases `del` and `copy` to cmdlets that reject cmd's flags.
 
-rem The Bluetooth permissions. Without these a scan returns zero devices and
-rem reports nothing about why.
-copy /y platform\AndroidManifest.xml android\app\src\main\AndroidManifest.xml
+```powershell
+cd C:\AREAS\skool\Q5\cse475\EE542-RehabSense
+git add -A
+git commit -m "Flutter host"
 
+cd final\app
+
+# Generate the platform scaffolding. Once only, on a clone with no android\.
+flutter create --org edu.usc.cse475 --platforms=android,ios .
+git checkout -- lib pubspec.yaml README.md SETUP.md
+Remove-Item test\widget_test.dart -Force
+
+# The Bluetooth permissions. Without these a scan returns zero devices and
+# reports nothing about why.
+Copy-Item platform\AndroidManifest.xml android\app\src\main\AndroidManifest.xml -Force
+
+# flutter create ran pub get against its own placeholder pubspec, which the
+# checkout above then replaced. So this is not redundant — the dependency
+# state is stale until it runs.
 flutter pub get
 flutter test
 flutter run
@@ -169,7 +240,7 @@ on the device.
 
 | Symptom | Cause |
 |---|---|
-| `'flutter' is not recognized` after installing | The terminal predates the PATH change. Open a new one. |
+| `'flutter' is not recognized` after installing | Either the PATH entry is the docs' example path rather than this machine's (see above), or the terminal predates the PATH change. Check the entry first, then open a new terminal. |
 | `flutter doctor` flags "Android licence status unknown" | `flutter doctor --android-licenses` has not been run. |
 | `flutter pub get` fails on `flutter_blue_plus` | 1.x may be too old for current Flutter. See the note in `pubspec.yaml` — the subscription and MTU paths are what change in 2.x, so it wants a real port rather than a version bump. |
 | Gradle fails on `compileSdk` or NDK | Usually a plugin wanting a newer `compileSdk` than the template set. Raise it in `android/app/build.gradle(.kts)`. |
