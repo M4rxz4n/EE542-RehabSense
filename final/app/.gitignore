@@ -1,0 +1,36 @@
+# Flutter / Dart build output
+.dart_tool/
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
+
+# Platform scaffolding IS checked in once generated (see README, step 1), so
+# the permission entries in AndroidManifest.xml and Info.plist survive and
+# nobody has to re-apply them. Only its build output is ignored.
+android/.gradle/
+android/app/debug/
+android/app/profile/
+android/app/release/
+android/local.properties
+android/key.properties
+*.jks
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework/
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+
+# Lock file: committed on purpose. A December demo should build from the same
+# resolved versions it was tested with.
+!pubspec.lock
+
+# Fetched session records — patient data, never in git.
+sessions/
+*.rsz
+
+# IDE
+.idea/
+*.iml
+.vscode/launch.json
