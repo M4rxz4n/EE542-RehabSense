@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Overwrite android/app/src/main/AndroidManifest.xml with this after running
+  `flutter create .` (README step 1). The generated file has none of the
+  Bluetooth permissions, and a BLE scan silently returns zero devices without
+  them rather than raising anything you can see.
+
+  Android's Bluetooth permissions split at API 31 (Android 12):
+
+    API 31+   BLUETOOTH_SCAN + BLUETOOTH_CONNECT, runtime-requested.
+              usesPermissionFlags="neverForLocation" lets the scan run WITHOUT
+              asking for location, which is what we want — the sleeve is on
+              the patient's arm, not somewhere that needs locating. Omit the
+              flag and Android demands location permission for a BLE scan.
+
+    API 30-   BLUETOOTH + BLUETOOTH_ADMIN are install-time, but a scan still
+              needs ACCESS_FINE_LOCATION at runtime. maxSdkVersion keeps the
+              legacy pair off newer devices.
+
+  INTERNET is for the clinician bridge: the app runs an HTTP + WebSocket
+  server on the phone so a clinician on the same network can watch the live
+  feed. No outbound calls are made.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Android 12+ -->
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
+    <!-- Android 11 and below -->
+    <uses-permission android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"
+        android:maxSdkVersion="30" />
+
+    <!-- Clinician bridge server, and the SoftAP fetch after a session. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+
+    <!--
+      Keeps the BLE link alive and the screen on while a set is running. A
+      patient doing twenty slow curls will not be touching the phone, and
+      Android will otherwise doze the radio mid-set.
+    -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission
+        android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+
+    <uses-feature android:name="android.hardware.bluetooth_le"
+        android:required="true" />
+
+    <application
+        android:label="RehabSense"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <meta-data
+                android:name="io.flutter.embedding.android.NormalTheme"
+                android:resource="@style/NormalTheme" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+    </application>
+
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT" />
+            <data android:mimeType="text/plain" />
+        </intent>
+    </queries>
+</manifest>

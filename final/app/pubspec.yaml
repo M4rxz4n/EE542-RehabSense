@@ -1,0 +1,59 @@
+name: rehabsense
+description: >-
+  RehabSense Phase 2 host. Patient-facing live view over BLE, calibration,
+  and the post-session bulk fetch. One Dart codebase for Android and iOS.
+publish_to: none
+
+version: 0.1.0+1
+
+environment:
+  # 3.6.0 is the Dart that ships with Flutter 3.27, which is the floor for
+  # Color.withValues. Anything newer is fine and is what you will actually
+  # have — current stable is around Flutter 3.47.
+  sdk: ">=3.6.0 <4.0.0"
+  flutter: ">=3.27.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # BLE central.
+  #
+  # Pinned to 1.x because lib/ble/rehab_device.dart was written against that
+  # API: startScan(withServices:), device.connect(timeout:),
+  # device.requestMtu(), characteristic.onValueReceived, and
+  # characteristic.write(withoutResponse:).
+  #
+  # If `flutter pub get` or the Android build complains about this package,
+  # 2.x is out and reworked those calls. Do not just bump it and hope — the
+  # subscription and MTU paths are where it differs, and a silently wrong MTU
+  # looks like a protocol bug. Say so and it can be ported properly.
+  flutter_blue_plus: ^1.32.0
+
+  # Android 12+ splits Bluetooth into BLUETOOTH_SCAN / BLUETOOTH_CONNECT, and
+  # Android 11 and below need location for a BLE scan. See AndroidManifest.
+  #
+  # The range is deliberately wide: the handful of calls used here
+  # (Permission.bluetoothScan, .request(), .isGranted, .isPermanentlyDenied,
+  # openAppSettings) have been stable across several majors, and pinning to
+  # one would more likely cause a resolution dead-end than save a breakage.
+  permission_handler: ">=11.3.1 <15.0.0"
+
+  # Where a fetched session record lands.
+  path_provider: ^2.1.2
+
+  # Deliberately no HTTP, WebSocket or network-info package: the clinician
+  # bridge uses dart:io HttpServer and WebSocketTransformer, and the phone's
+  # LAN address comes from NetworkInterface.list(). Both are in the SDK. One
+  # fewer dependency is one fewer version conflict before a December demo.
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # Wide on purpose, for the same reason as permission_handler: this only
+  # affects lint output, so there is no sense letting it block a build.
+  flutter_lints: ">=4.0.0 <7.0.0"
+
+flutter:
+  uses-material-design: true
