@@ -1,0 +1,13 @@
+RehabSense prototype: demo final file (29 Oct 2026)
+
+1. Firmware: open rehabsense_v5/rehabsense_v5.ino in the Arduino IDE.
+   Keep the folder name rehabsense_v5 (the Arduino IDE needs it to match the .ino name).
+   Board: ESP32 Dev Module. Libraries: SparkFun BMI270, Adafruit DRV2605, NimBLE-Arduino 2.x.
+   Partition scheme: Huge APP if it doesn't fit. Upload, then Serial Monitor at 115200.
+   Details: rehabsense_v5/README.md and rehabsense_v5/BLE_PROTOCOL.md.
+
+2. Session viewer: open "RehabSense Session Viewer.html" in Chrome (Bluetooth needs Chrome or Edge),
+   press Connect sleeve, pick RehabSense.
+
+Before the demo: fresh electrodes, unplug USB for 5 s, calibrate step by step with the arm by your side,
+and keep a good live log to use with "Play a recorded session" as a backup.
