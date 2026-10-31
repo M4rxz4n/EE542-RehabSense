@@ -1724,16 +1724,6 @@
 	)
 	(wire
 		(pts
-			(xy 176.53 67.31) (xy 181.61 67.31)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "43614f8f-6dd4-428a-bcb3-465779362f16")
-	)
-	(wire
-		(pts
 			(xy 93.98 115.57) (xy 93.98 118.11)
 		)
 		(stroke
@@ -1771,6 +1761,16 @@
 			(type default)
 		)
 		(uuid "57a18155-dbfa-463f-b89a-933174457009")
+	)
+	(wire
+		(pts
+			(xy 97.79 67.31) (xy 97.79 69.85)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "5973b60b-4e4d-46db-bb88-0c596d7c4d8a")
 	)
 	(wire
 		(pts
@@ -1851,6 +1851,16 @@
 			(type default)
 		)
 		(uuid "765b9abe-1b48-49de-b44c-162edd4d4a4a")
+	)
+	(wire
+		(pts
+			(xy 181.61 67.31) (xy 172.72 67.31)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "7745e021-c2ea-41d6-8587-5baf2b2a2bc3")
 	)
 	(wire
 		(pts
@@ -1991,16 +2001,6 @@
 			(type default)
 		)
 		(uuid "a9899ce5-eb55-48f3-9476-9ecf0c7f6f57")
-	)
-	(wire
-		(pts
-			(xy 101.6 67.31) (xy 106.68 67.31)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "ae094ee1-6402-4219-aab5-0f3c97378b62")
 	)
 	(wire
 		(pts
@@ -2234,6 +2234,16 @@
 	)
 	(wire
 		(pts
+			(xy 172.72 67.31) (xy 172.72 69.85)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f170b5a9-c3db-442d-b29f-25add424d473")
+	)
+	(wire
+		(pts
 			(xy 105.41 118.11) (xy 115.57 118.11)
 		)
 		(stroke
@@ -2241,6 +2251,16 @@
 			(type default)
 		)
 		(uuid "f247ef79-adc3-4b49-91ec-69c6b6d90288")
+	)
+	(wire
+		(pts
+			(xy 106.68 67.31) (xy 97.79 67.31)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f302b4e4-7d70-4786-afa5-301d8d023666")
 	)
 	(wire
 		(pts
@@ -2312,7 +2332,7 @@
 		)
 		(uuid "64d8a603-b749-4c28-a2ad-efd0fb770e8d")
 	)
-	(label "SDA"
+	(label "SDA_H1"
 		(at 101.6 74.93 0)
 		(effects
 			(font
@@ -2322,17 +2342,7 @@
 		)
 		(uuid "848dda84-c853-402f-a57b-4f130e0fb751")
 	)
-	(label "PWM2"
-		(at 176.53 67.31 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "9e900b38-8b66-477d-8db5-cc202dcf2017")
-	)
-	(label "SDA"
+	(label "SDA_H2"
 		(at 176.53 74.93 0)
 		(effects
 			(font
@@ -2372,7 +2382,7 @@
 		)
 		(uuid "c2624367-8220-42df-aa94-b0fd7b805655")
 	)
-	(label "SCL"
+	(label "SCL_H1"
 		(at 101.6 69.85 0)
 		(effects
 			(font
@@ -2381,16 +2391,6 @@
 			(justify left bottom)
 		)
 		(uuid "d610c7e2-89ea-4670-bad2-d2b7c32f964c")
-	)
-	(label "PWM1"
-		(at 101.6 67.31 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "dff351b9-0e06-4ff2-a93d-0765e5436356")
 	)
 	(label "MOT2-"
 		(at 222.25 67.31 180)
@@ -2426,54 +2426,6 @@
 			)
 		)
 	)
-	(global_label "PWM_HAP2"
-		(shape input)
-		(at 176.53 67.31 180)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "212d1d2e-ed2c-4a46-9635-da6abc5ec17d")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 163.5058 67.31 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-	)
-	(global_label "PWM_HAP1"
-		(shape input)
-		(at 101.6 67.31 180)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "af6bc987-8daa-40eb-8e2e-1c25a6887fc8")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 88.5758 67.31 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-	)
 	(global_label "SDA"
 		(shape input)
 		(at 156.21 110.49 0)
@@ -2495,85 +2447,6 @@
 					(size 1.27 1.27)
 				)
 				(justify left)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Connector:TestPoint")
-		(at 176.53 67.31 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "06210e40-e7e7-4fc5-be10-19a339f80408")
-		(property "Reference" "TP18"
-			(at 172.212 62.738 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "TestPoint"
-			(at 179.07 65.2779 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Connector_Pin:Pin_D1.0mm_L10.0mm_LooseFit"
-			(at 181.61 67.31 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 181.61 67.31 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "test point"
-			(at 176.53 67.31 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "8ef3648b-8907-4fdc-b1d0-e05401618719")
-		)
-		(instances
-			(project "rehabsense-main"
-				(path "/b751250a-7d43-475a-8447-686d399cd67b/39f701b7-54f7-4d93-875f-501d10af9b57"
-					(reference "TP18")
-					(unit 1)
-				)
 			)
 		)
 	)
@@ -3718,6 +3591,84 @@
 			(project "rehabsense-main"
 				(path "/b751250a-7d43-475a-8447-686d399cd67b/39f701b7-54f7-4d93-875f-501d10af9b57"
 					(reference "#PWR023")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 97.79 69.85 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "6a50290f-6ce9-4fac-b698-e7face004cd5")
+		(property "Reference" "#PWR047"
+			(at 97.79 76.2 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "DGND"
+			(at 97.79 74.93 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 97.79 69.85 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 97.79 69.85 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 97.79 69.85 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "0881d8e1-78ee-4064-a6e6-cb9a99d8f369")
+		)
+		(instances
+			(project "rehabsense-main"
+				(path "/b751250a-7d43-475a-8447-686d399cd67b/39f701b7-54f7-4d93-875f-501d10af9b57"
+					(reference "#PWR047")
 					(unit 1)
 				)
 			)
@@ -4948,85 +4899,6 @@
 		)
 	)
 	(symbol
-		(lib_id "Connector:TestPoint")
-		(at 101.6 67.31 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "c71e886e-a727-4b2b-93ac-8ee072ef5ce5")
-		(property "Reference" "TP17"
-			(at 97.282 62.738 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "TestPoint"
-			(at 104.14 65.2779 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Connector_Pin:Pin_D1.0mm_L10.0mm_LooseFit"
-			(at 106.68 67.31 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 106.68 67.31 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "test point"
-			(at 101.6 67.31 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "e3c18690-58d7-48f3-af37-295c8dd04412")
-		)
-		(instances
-			(project "rehabsense-main"
-				(path "/b751250a-7d43-475a-8447-686d399cd67b/39f701b7-54f7-4d93-875f-501d10af9b57"
-					(reference "TP17")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "power:GND")
 		(at 219.71 82.55 0)
 		(unit 1)
@@ -5340,6 +5212,84 @@
 			(project "rehabsense-main"
 				(path "/b751250a-7d43-475a-8447-686d399cd67b/39f701b7-54f7-4d93-875f-501d10af9b57"
 					(reference "#PWR015")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 172.72 69.85 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "e87a9c78-79a5-4682-9cca-1cb93e56843f")
+		(property "Reference" "#PWR061"
+			(at 172.72 76.2 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "DGND"
+			(at 172.72 74.93 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 172.72 69.85 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 172.72 69.85 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 172.72 69.85 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "56ea2cdc-b27e-4539-b611-48100dbd59ce")
+		)
+		(instances
+			(project "rehabsense-main"
+				(path "/b751250a-7d43-475a-8447-686d399cd67b/39f701b7-54f7-4d93-875f-501d10af9b57"
+					(reference "#PWR061")
 					(unit 1)
 				)
 			)
