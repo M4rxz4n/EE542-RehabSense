@@ -33,9 +33,24 @@
 ///   fallen far enough — the fatigue story
 /// - a shoulder-hike rep, flagged and scored down
 /// - a passive swing: the angle rises with the biceps quiet, so no rep starts
+/// - a partial rep that stops short of the criterion
+///
+/// ## It also prints what the sleeve prints
+///
+/// Three things reach the app only as text on the Messages characteristic: the
+/// `[FT1]` fatigue percentages, the per-rep `biceps=` activation ratio, and the
+/// whole of calibration's output. A demo that emitted frames but no text would
+/// leave the therapist's fatigue chart empty, the rep table's pace column
+/// blank and the calibration console silent — which is to say it would exercise
+/// none of the paths most likely to be wrong.
+///
+/// So this driver emits the text too, byte-identical in **format** to the
+/// firmware's own `Log.printf` strings. `tool/check_message_patterns.py` checks
+/// the parser against those same formats from the other direction.
 library;
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -83,11 +98,25 @@ class DemoDriver {
   int _batteryPct = 88;
   bool _fatigueWarned = false;
 
+  // State the printed status lines report, which the frames do not carry.
+  bool _calibrated = false;
+  bool _resting = false;
+  bool _sessionDone = false;
+  bool _paceOn = true;
+  int _setNumber = 1;
+  int _partials = 0;
+
+  /// The session's first three counted reps, for the `[FT1]` baseline the
+  /// sleeve compares against. Same rule as `fatigue.cpp`: peak, duration and
+  /// effort per degree.
+  final List<(double, double, double)> _baseline = [];
+
   // Per-rep scripting.
   double _repPeak = 0;
   double _repStartUs = 0;
   bool _repShoulder = false;
   bool _repIsPassive = false;
+  bool _repIsPartial = false;
   int _velocityPeaks = 2;
 
   CalibRecord _calibRecord = CalibRecord(
@@ -146,30 +175,66 @@ class DemoDriver {
   void _emit(String uuid, Uint8List bytes) =>
       device.injectNotification(uuid, bytes);
 
+  /// One printed line, as the sleeve would send it on 000A.
+  ///
+  /// Newline-terminated, because the reassembler keys on newlines and a line
+  /// without one would sit in its buffer — which is exactly the behaviour
+  /// worth exercising rather than bypassing.
+  void _say(String line) =>
+      _emit(kUuidMessages, Uint8List.fromList(utf8.encode('$line\n')));
+
+  /// The `# LIVE` and `# PARAMS` pair the `i` command produces.
+  ///
+  /// Format copied from `comms.cpp`. The app reads its thresholds from these
+  /// in preference to the TLV config, because on a real sleeve calibration can
+  /// replace the target without the config changing.
+  void _sayStatusLines() {
+    final setNo = math.min(_setNumber, _cfg.setCount);
+    _say('# LIVE calibrated=${_calibrated ? 1 : 0} '
+        'set=$setNo/${_cfg.setCount} reps=$_repCount '
+        'partials=$_partials resting=${_resting ? 1 : 0} '
+        'done=${_sessionDone ? 1 : 0} paused=0 pace=${_paceOn ? 1 : 0}');
+    _say('# PARAMS target=${_cfg.targetAngleDeg.toStringAsFixed(0)} '
+        'peak=${CfgDefaults.peakFraction.toStringAsFixed(2)} '
+        'start=${_cfg.startAngleDeg.toStringAsFixed(0)} '
+        'hyst=${(_cfg.startAngleDeg - _cfg.finishAngleDeg).toStringAsFixed(0)} '
+        'tempo=${_cfg.tempoMinS.toStringAsFixed(1)}'
+        '-${_cfg.tempoMaxS.toStringAsFixed(1)} '
+        'muscle=10 sets=${_cfg.setCount}x${_cfg.repTarget} '
+        'rest=${_cfg.restSeconds}');
+  }
+
   // ── Command handling ───────────────────────────────────────────────────
 
   void _onCommand(Uint8List payload) {
     if (payload.isEmpty) return;
     switch (payload.first) {
       case Cmd.startSession:
-        _sessionRunning = true;
-        _repCount = 0;
-        _mdf = 96.0;
-        _fatigueWarned = false;
-        _phase = _Phase.ready;
-        _phaseElapsedMs = 0;
-        _angle = _cfg.finishAngleDeg;
-        _prepareRep();
-        _event(RehabEvent.stateChange, [FwState.operational.wire]);
-        _pushStatus();
+        // The sleeve calibrates by itself if it has not been calibrated,
+        // then starts. Worth reproducing: it is the path most demos take.
+        if (!_calibrated) {
+          _runCalibration(CalibPhase.all, thenStart: true);
+          return;
+        }
+        _beginSet();
 
       case Cmd.stopSession:
         _sessionRunning = false;
+        _resting = false;
+        _sessionDone = true;
         _phase = _Phase.idle;
         _envelope = 0.02;
         _dev = 0;
+        _say('');
+        _say('# SESSION STOPPED from the app: $_repCount reps.');
+        // No payload after a STOP, which is how the app tells a stop from a
+        // set that finished on its own.
+        _event(RehabEvent.setComplete, const []);
         _event(RehabEvent.stateChange, [FwState.standby.wire]);
         _pushStatus();
+
+      case Cmd.text:
+        _onText(utf8.decode(payload.sublist(1), allowMalformed: true).trim());
 
       case Cmd.startCalibration:
         final phase = payload.length > 1
@@ -247,21 +312,187 @@ class DemoDriver {
     }
   }
 
-  void _runCalibration(CalibPhase requested) {
-    final steps = requested == CalibPhase.all
-        ? CalibPhase.wizardSteps
-        : [requested];
+  /// A Serial Monitor command, as the TEXT opcode delivers it.
+  ///
+  /// Only the commands the app actually sends are answered. An unknown one
+  /// gets the sleeve's own reply, because a demo that silently swallowed a
+  /// typo would teach the wrong lesson about the real thing.
+  void _onText(String cmd) {
+    switch (cmd) {
+      case 'i':
+        _sayStatusLines();
+      case 'b':
+        _paceOn = !_paceOn;
+        _say('# [GP1] Guided pace ${_paceOn ? 'on: tick = UP, steady buzz = '
+            'HOLD, double tick = DOWN' : 'off'}');
+      case 'z':
+        _say('Straight-arm reference saved (0 deg). Angle now '
+            '${_angle.toStringAsFixed(1)} deg');
+      case 'e':
+        _runEmgTest();
+      case 'r':
+        _repCount = 0;
+        _partials = 0;
+        _setNumber = 1;
+        _sessionDone = false;
+        _baseline.clear();
+        _say('# New session: set 1 of ${_cfg.setCount}');
+      case 'c':
+        _runCalibration(CalibPhase.all);
+      case 'n':
+        // Advancing a step by hand. The scripted timer already paces them, so
+        // this only acknowledges.
+        _say('>> moving on');
+      case 'g':
+        if (!_sessionRunning) _beginSet();
+      case 't?':
+        _say('# [AT4] Target now '
+            '${_cfg.targetAngleDeg.toStringAsFixed(0)} deg, saved '
+            '${_cfg.targetAngleDeg.toStringAsFixed(0)} deg, adaptive, '
+            '3 session(s)');
+      case 'tl':
+        _say('# [AT3] Target locked at '
+            '${_cfg.targetAngleDeg.toStringAsFixed(0)} deg');
+      case 'tr':
+        _say('# [AT4] Saved progress cleared. The next calibration starts '
+            'fresh.');
+      default:
+        if (cmd.startsWith('h')) {
+          _say('# $cmd: (demo mode has no motor to drive)');
+        } else if (cmd.startsWith('t') && cmd.length > 1) {
+          _say('# [AT3] Target set to ${cmd.substring(1)} deg and locked');
+        } else {
+          _say('# Unknown command "$cmd". Type ? for help.');
+        }
+    }
+  }
+
+  /// The EMG signal test, with the firmware's own line formats and a healthy
+  /// result. Timed rather than instant, because the screen shows it running.
+  void _runEmgTest() {
+    _say('');
+    _say('# === EMG signal-quality test ===');
+    _say('# Sit still. Laptop on battery, unplugged from the charger.');
+    var step = 0;
+    Timer.periodic(const Duration(milliseconds: 900), (t) {
+      switch (step++) {
+        case 0:
+          _say('# Measuring: stay relaxed...');
+        case 1:
+          _say('# Measuring: keep squeezing...');
+        case 2:
+          _say('#');
+          _say('# REST     mean    118 mV   noise (SD)   3.2 mV   '
+              'range   96.. 141 mV');
+          _say('#          mains hum: 60 Hz 0.9 mV RMS, 120 Hz 0.3 mV RMS '
+              '(28% of the rest noise)');
+          _say('# SQUEEZE  mean    965 mV   peak 1218 mV   '
+              'rise above rest   847 mV');
+          _say('# SNR      24.4 dB (squeeze rise / rest noise)');
+          _say('#');
+        case 3:
+          _say('# PASS  SNR at least 20 dB: clean enough for rep detection '
+              'and scoring.');
+          _say('# Tips: reseat electrodes with fresh gel, reference on the '
+              'elbow bone, keep the leads short.');
+          _say('# === End of EMG test ===');
+          _say('');
+          t.cancel();
+      }
+    });
+  }
+
+  /// Calibration, as the sleeve runs it: three steps, each announced twice
+  /// (0% then 100%), with the measured results printed in between.
+  ///
+  /// Three steps and not six — the shipping sleeve has no contact check, no
+  /// triceps channel and no range sweep. A demo that showed six would train
+  /// everyone to expect prompts the hardware never sends.
+  void _runCalibration(CalibPhase requested, {bool thenStart = false}) {
+    const steps = [CalibPhase.rest, CalibPhase.straight, CalibPhase.biceps];
+    final run = requested == CalibPhase.all ? steps : [requested];
+
+    _say('');
+    _say('=== Calibration ===');
+    _say('Started from the app: each step starts by itself after 3 s.');
+
     var i = 0;
+    var half = 0;
     _calib?.cancel();
-    _calib = Timer.periodic(const Duration(milliseconds: 1400), (t) {
-      if (i >= steps.length) {
+    _calib = Timer.periodic(const Duration(milliseconds: 1100), (t) {
+      if (i >= run.length) {
         t.cancel();
+        _calibrated = true;
+        _say('=== Calibration done ===');
+        _sayStatusLines();
         _emit(kUuidCalib, _calibRecord.pack());
+        _event(RehabEvent.calibPhaseDone,
+            [CalibPhase.done.wire, 100]);
+        if (thenStart) _beginSet();
         return;
       }
-      _event(RehabEvent.calibPhaseDone, [steps[i].wire]);
-      i++;
+
+      final phase = run[i];
+      if (half == 0) {
+        _event(RehabEvent.calibPhaseDone, [phase.wire, 0]);
+        _say('>> ${_promptFor(phase)}');
+        half = 1;
+      } else {
+        _sayResultsFor(phase);
+        _event(RehabEvent.calibPhaseDone, [phase.wire, 100]);
+        _say('Step ${i + 1} done.');
+        half = 0;
+        i++;
+      }
     });
+  }
+
+  String _promptFor(CalibPhase p) => switch (p) {
+        CalibPhase.rest => 'Let your arm hang loose and still',
+        CalibPhase.straight => 'Hold your arm straight and still',
+        CalibPhase.biceps => 'Squeeze as hard as is comfortable',
+        _ => 'Hold still',
+      };
+
+  void _sayResultsFor(CalibPhase p) {
+    switch (p) {
+      case CalibPhase.rest:
+        _say('[FC1] Rest EMG noise 3.2 mV (SD)');
+        _say('Rest EMG 118 mV, gyro bias upper 0.08/-0.14/0.21, '
+            'fore -0.05/0.11/-0.19 deg/s');
+      case CalibPhase.straight:
+        _say('Straight-arm reference saved (0 deg). Angle now 0.4 deg');
+      case CalibPhase.biceps:
+        _say('Max contraction EMG 965 mV');
+        _say('[FC1] Biceps counts as working above 160 mV (10%), relaxed '
+            'below 140 mV');
+        final bend = _calibRecord.angleMax.toStringAsFixed(0);
+        final target = _cfg.targetAngleDeg.toStringAsFixed(0);
+        final counts =
+            (_cfg.targetAngleDeg * CfgDefaults.peakFraction).toStringAsFixed(0);
+        _say('Comfortable bend $bend deg: target $target deg '
+            '(a rep counts from $counts deg)');
+      default:
+        break;
+    }
+  }
+
+  void _beginSet() {
+    _sessionRunning = true;
+    _resting = false;
+    _sessionDone = false;
+    _repCount = 0;
+    _mdf = 96.0;
+    _fatigueWarned = false;
+    _baseline.clear();
+    _phase = _Phase.ready;
+    _phaseElapsedMs = 0;
+    _angle = _cfg.finishAngleDeg;
+    _prepareRep();
+    _say('');
+    _say('Rep start! Set $_setNumber of ${_cfg.setCount}');
+    _event(RehabEvent.stateChange, [FwState.operational.wire]);
+    _pushStatus();
   }
 
   // ── The movement ───────────────────────────────────────────────────────
@@ -274,6 +505,11 @@ class DemoDriver {
     // One passive swing partway in: the angle rises with the biceps quiet,
     // so no rep starts at all. Demo item 4.
     _repIsPassive = next == 4;
+    // And one honest attempt that stops short of the criterion. It is
+    // reported and not counted, which is the case a patient most needs to see
+    // handled gracefully — nothing at all after a hard attempt reads as a
+    // broken device.
+    _repIsPartial = next == 7;
     _velocityPeaks = 2 + (_repShoulder ? 2 : 0) + _rng.nextInt(2);
     _repPeak = 0;
   }
@@ -321,7 +557,12 @@ class DemoDriver {
         const durMs = 1300.0;
         final u = (_phaseElapsedMs / durMs).clamp(0.0, 1.0);
         final eased = 0.5 - 0.5 * math.cos(u * math.pi);
-        _angle = finish + (peakTarget + 6 - finish) * eased + _noise(0.7);
+        // A partial stops short of the criterion by design: it reaches the
+        // band and turns round without crossing the line.
+        final top = _repIsPartial
+            ? finish + (peakTarget - finish) * 0.62
+            : peakTarget + 6;
+        _angle = finish + (top - finish) * eased + _noise(0.7);
         _repPeak = math.max(_repPeak, _angle);
 
         if (_repIsPassive) {
@@ -342,7 +583,9 @@ class DemoDriver {
         _dev = _repShoulder ? 26.0 * eased + _noise(1.2) : _noise(1.4);
         _pushFeatures(RepState.concentric, activation: true);
 
-        if (_angle >= peakTarget) {
+        // A partial turns round at the top of its own shorter travel; a full
+        // rep turns round on crossing the criterion.
+        if (_repIsPartial ? u >= 1.0 : _angle >= peakTarget) {
           _phase = _Phase.peak;
           _phaseElapsedMs = 0;
           if (_repShoulder) {
@@ -351,7 +594,7 @@ class DemoDriver {
         }
 
       case _Phase.peak:
-        _angle = peakTarget + 6 + _noise(0.8);
+        _angle = (_repIsPartial ? _repPeak : peakTarget + 6) + _noise(0.8);
         _repPeak = math.max(_repPeak, _angle);
         _envelope = 0.64 + _noise(0.04);
         _dev = _repShoulder ? 26.0 + _noise(1.5) : _noise(1.4);
@@ -376,8 +619,33 @@ class DemoDriver {
         );
         if (u >= 1.0) {
           if (_repIsPassive) {
-            // Never became a rep. Straight back to waiting.
+            // Never became a rep. The printed line carries the peak and the
+            // activation ratio the event does not.
+            _partials++;
+            _say('# NOT COUNTED [FC2]: peak ${_repPeak.toStringAsFixed(0)} '
+                'deg, but the biceps was working for only 18% of the lift '
+                '(needs 60%).');
+            _say('#   It looked like the arm was lifted for you. Lift it with '
+                'your biceps.');
             _repIsPassive = false;
+            _prepareRep();
+            _phase = _Phase.ready;
+          } else if (_repIsPartial) {
+            _partials++;
+            final needed =
+                (_cfg.targetAngleDeg * CfgDefaults.peakFraction);
+            // `<Hh`: the index the NEXT rep would take, and the peak in
+            // tenths of a degree. A partial consumes no number.
+            final payload = ByteData(4)
+              ..setUint16(0, _repCount + 1, Endian.little)
+              ..setInt16(2, (_repPeak * 10).round(), Endian.little);
+            _event(RehabEvent.repAbandoned,
+                payload.buffer.asUint8List().toList());
+            _say('# Partial rep (peak ${_repPeak.toStringAsFixed(0)} deg, '
+                'needed ${needed.toStringAsFixed(0)})');
+            _say('#   That one didn\'t quite reach the target. Rest a moment '
+                'if you need to.');
+            _repIsPartial = false;
             _prepareRep();
             _phase = _Phase.ready;
           } else {
@@ -438,19 +706,93 @@ class DemoDriver {
     );
     _event(RehabEvent.repComplete, rep.pack());
 
-    // Fatigue: median frequency falls as the set goes on. Advises, never
-    // ends the set.
-    _mdf = math.max(58.0, _mdf - 1.35 - _rng.nextDouble() * 0.5);
-    if (!_fatigueWarned && _mdf < 82.0) {
-      _fatigueWarned = true;
-      _event(RehabEvent.fatigueWarn, const []);
+    // The printed line, in `rep.cpp`'s format. It carries the two fields the
+    // event does not: the tempo verdict in words, and the share of the lift
+    // the biceps was working.
+    final tempoScore =
+        (tempoOk ? 100 : 100 - 25 * (tempoS - _cfg.tempoMaxS).abs())
+            .clamp(50, 100)
+            .round();
+    final tempoText = tempoS < _cfg.tempoMinS
+        ? 'too fast'
+        : tempoS > _cfg.tempoMaxS
+            ? 'slow'
+            : 'ok';
+    final bicepsPct = _repShoulder ? 71 : 78 + _rng.nextInt(12);
+    final flags = _repShoulder ? '  flags=shoulder' : '';
+    final flagged = _repShoulder ? '  FLAGGED' : '';
+
+    _say('# REP $_repCount  peak=${_repPeak.toStringAsFixed(1)} deg  '
+        'duration=${tempoS.toStringAsFixed(1)} s  '
+        'rom=${(rom * 100).round()}  '
+        'tempo=$tempoScore ($tempoText)  '
+        'score=${rep.score}$flagged$flags  biceps=$bicepsPct%');
+    if (_repShoulder) {
+      _say('#   [FC4] Your upper arm moved 26 deg: keep your elbow by your '
+          'side and sit tall (-20).');
+    }
+    _say('#   Set $_setNumber: $_repCount of ${_cfg.repTarget}');
+
+    // The `[FT1]` comparison: the last reps against the session's first
+    // three, as `fatigue.cpp` computes it. Effort is per degree, so a rep
+    // that costs the same muscle for less range counts as fatigue.
+    final effortPerDeg = _envelope <= 0 || _repPeak <= 0
+        ? 0.0
+        : (0.6 * 100) / _repPeak;
+    if (_baseline.length < 3) {
+      _baseline.add((_repPeak, tempoS, effortPerDeg));
+    } else {
+      double mean(int i) =>
+          _baseline.map((b) => [b.$1, b.$2, b.$3][i]).reduce((a, b) => a + b) /
+          _baseline.length;
+      final rangePct = _repPeak / mean(0) * 100;
+      final timePct = tempoS / mean(1) * 100;
+      // Walks up across the set, so the demo reaches a sign rather than
+      // sitting at 100% for ever.
+      final effortPct = 100 + (_repCount - 3) * 4.5;
+
+      final rangeSign = rangePct < FatigueThresholds.range;
+      final effortSign = effortPct > FatigueThresholds.effort;
+      final slowSign = timePct > FatigueThresholds.time;
+      final marks = '${rangeSign ? '  RANGE' : ''}'
+          '${effortSign ? '  EFFORT' : ''}'
+          '${slowSign ? '  SLOW' : ''}';
+      _say('#   [FT1] vs your first reps: '
+          'range ${rangePct.toStringAsFixed(0)}%, '
+          'effort ${effortPct.toStringAsFixed(0)}%, '
+          'time ${timePct.toStringAsFixed(0)}%$marks');
+
+      final signs =
+          (rangeSign ? 1 : 0) + (effortSign ? 1 : 0) + (slowSign ? 1 : 0);
+      if (signs >= 1 && !_fatigueWarned) {
+        _fatigueWarned = true;
+        // `<hH`: the number of signs and the total reps.
+        final payload = ByteData(4)
+          ..setInt16(0, signs, Endian.little)
+          ..setUint16(2, _repCount, Endian.little);
+        _event(RehabEvent.fatigueWarn, payload.buffer.asUint8List().toList());
+        _say('#   [FT2] You may be getting tired. Take your time.');
+      }
     }
 
+    // Median frequency still falls, for the ESP-IDF firmware's own fatigue
+    // signal. The shipping sleeve reports zero here and leans on `[FT1]`.
+    _mdf = math.max(58.0, _mdf - 1.35 - _rng.nextDouble() * 0.5);
+
     if (_repCount >= _cfg.repTarget) {
-      _event(RehabEvent.setComplete, const []);
+      // u16 reps in the set. Distinct from a STOP, which sends no payload.
+      final payload = ByteData(2)..setUint16(0, _repCount, Endian.little);
+      _event(RehabEvent.setComplete, payload.buffer.asUint8List().toList());
+      _say('');
+      _say('Set $_setNumber of ${_cfg.setCount} complete. Well done! Rest for '
+          '${_cfg.restSeconds} s: let your arm relax.');
       _sessionRunning = false;
+      _resting = _setNumber < _cfg.setCount;
+      _sessionDone = !_resting;
+      if (_resting) _setNumber++;
       _phase = _Phase.idle;
       _event(RehabEvent.stateChange, [FwState.standby.wire]);
+      _sayStatusLines();
     }
 
     _prepareRep();

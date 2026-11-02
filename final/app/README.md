@@ -1,286 +1,331 @@
-# RehabSense — Phase 2 host (Flutter)
+# RehabSense app
 
-The patient-facing application of PRD §5.9, Phase 2. One Dart codebase, native
-Android and iOS builds, talking to the sleeve over the BLE contract frozen in
-`../firmware/main/ble/ble_service.h`.
+The phone app: the host for the sleeve, and the thing that gets demoed. One
+Dart codebase for iOS and Android.
 
-It replaces nothing the Python client does for tuning. `../python` stays the
-tool for CSV logging and offline filter work; this is the thing a patient
-holds, and the thing that exercises what Python cannot — platform BLE
-behaviour, connection intervals, permissions, and a user experience.
+It talks to `../firmware-s3/` — the shipping Arduino firmware for the ESP32-S3
+/ XIAO. Build and wiring for that are in `../firmware-s3/README.md`.
 
-## What it does
+---
 
-| | |
-|---|---|
-| **Patient view** | Where the arm should be versus where it is, drawn live from the two IMUs. Rep counter, device-reported score, visual mirrors of the haptic cues. |
-| **Calibration** | The six prompted steps of PRD §5.3, each individually repeatable. |
-| **Clinician bridge** | The phone serves a live web page over the local network. Realtime features, events and scores. No backend, no accounts. |
-| **Session fetch** | After a set is sealed, pulls the full ~6.6 MB record off the sleeve's SoftAP over HTTP in seconds. |
+## Run it
 
-The device is authoritative for every event it reports — rep counted,
-compensation, fatigue, fault. This app **displays** those events; it never
-re-derives them from the raw stream. If a number here disagrees with the
-firmware, the firmware is right and this is a bug.
-
-## Build
-
-**Toolchain first.** Neither Flutter nor the Android SDK is installed on the
-project machine yet. `SETUP.md` has the current steps for both, the phone
-setup, and what tends to break first. Come back here once `flutter --version`
-works.
-
-### Android — works from Windows, macOS or Linux
-
-PowerShell, and commit first — step 1 overwrites files that only git can put
-back:
-
-```powershell
-git add -A; git commit -m "Flutter host"
-cd final\app
-
-# 1. Generate the platform scaffolding. Only needed once, on a fresh clone
-#    that has no android/ directory. It overwrites lib/main.dart,
-#    pubspec.yaml and README.md with placeholders, so put ours back after.
-flutter create --org edu.usc.cse475 --platforms=android,ios .
-git checkout -- lib pubspec.yaml README.md SETUP.md
-Remove-Item test\widget_test.dart -Force -ErrorAction SilentlyContinue
-
-# 2. Apply the platform patches. Without these a BLE scan returns zero
-#    devices and tells you nothing about why.
-Copy-Item platform\AndroidManifest.xml android\app\src\main\AndroidManifest.xml -Force
-#    iOS: follow platform/ios-Info.plist.patch.md
-
-# 3. Build and run. pub get is NOT redundant after step 1: flutter create
-#    resolved against its own placeholder pubspec, which the checkout
-#    replaced.
+```bash
 flutter pub get
-flutter test
-flutter devices
-flutter run -d <device-id>
+flutter analyze && flutter test
+flutter run            # a phone, or -d chrome for the layout only
 ```
 
-Then **commit `android/` and `ios/`**, so the permission entries survive and
-nobody has to re-apply them.
+**Do `flutter analyze` first.** Large parts of this app were written in an
+environment with no Dart toolchain, and verified instead by two checkers of
+its own (below). Those catch what goes wrong *across* files; they are not a
+compiler.
 
-A release APK for the demo, so it does not depend on a laptop being present:
+### iOS
 
-```powershell
-flutter build apk --release
-# build\app\outputs\flutter-apk\app-release.apk
+`ios/Runner/Info.plist` already carries the Bluetooth usage strings. On a
+device you need a signing team in Xcode — open `ios/Runner.xcworkspace`, set
+it under Signing & Capabilities, then `flutter run`.
+
+### Android
+
+See `platform/AndroidManifest.xml`: Android 12+ splits Bluetooth into
+`BLUETOOTH_SCAN` / `BLUETOOTH_CONNECT`, and Android 11 and below need location
+for a BLE scan. A scan without those permissions returns an empty list and
+reports nothing, which is the single most common way to lose an afternoon to
+this.
+
+---
+
+## The five tabs
+
+| Tab | Reader | Question it answers |
+| --- | --- | --- |
+| **Exercise** | the patient, mid-curl | Am I high enough, is my elbow drifting, is the muscle doing the work |
+| **Calibrate** | patient and therapist | Is this set up so the numbers mean anything |
+| **Session** | therapist, between sets | What happened, and which rep went wrong |
+| **Progress** | therapist, between visits | Is this person getting better |
+| **Therapist** | therapist, live | Is this prescription working, and is it safe to carry on |
+
+**Developer tools** are in the overflow menu, not a sixth tab. A bench tool one
+tap from a patient's screen is a bench tool that gets opened by accident
+mid-session.
+
+### What is on the Developer screen
+
+The sleeve's own command line, the twelve haptic patterns with a blind test,
+the EMG signal test, every printed line the sleeve sent, the binary event log,
+the adaptive-target controls, link diagnostics, the clinician bridge and the
+Wi-Fi fetch.
+
+---
+
+## How this relates to the HTML session viewer
+
+The viewer (`prototype/prototype demo final file/RehabSense Session Viewer.html`)
+was the reference for this port, and nearly all of it is here:
+
+| Viewer feature | Where it went |
+| --- | --- |
+| Live readouts, chips, status | Exercise + Therapist |
+| Calibration tool and console | Calibrate |
+| Session summary tiles | Session |
+| Whole-session overview strip | Session |
+| Elbow-angle and biceps-effort charts | Session |
+| Peak-angle and duration bar charts | Session |
+| Rep table with per-rep "why" | Session |
+| Progress-over-time charts | Progress |
+| Session comparison, saved list | Progress |
+| Export / import progress | Progress |
+| Patient kiosk screen | Exercise, plus the pain/effort rating |
+| Therapist dashboard, fatigue trend, flags | Therapist |
+| Haptic tester, event log, command box, CSV | Developer |
+
+**Not ported:** replaying a recorded Serial Monitor log. The viewer loads a
+`.txt` log and plays it through the charts, which is genuinely useful on a
+laptop with a USB cable attached — and on a phone there is no log file to
+load, because the phone is never the thing holding the serial port. The
+Developer tab's **Copy the whole log** puts the sleeve's printed output on the
+clipboard in exactly the viewer's input format, so the two tools still meet:
+record on the phone, replay in the viewer.
+
+---
+
+## Two things that are easy to get wrong
+
+### The target the sleeve is using is not the target you configured
+
+Calibration replaces the target angle with an adaptive one derived from the
+patient's own comfortable bend, capped at that bend plus 15°, and it announces
+the change **only in a printed line**. A screen reading the TLV config would
+tell a therapist their 110° target was in force when the sleeve had quietly
+eased it to 95°.
+
+So everything reads `state.effectiveTargetDeg` and friends, which prefer what
+the sleeve says over what the app wrote, and the Therapist tab says plainly
+when the two differ. The Developer tab can lock the therapist's number.
+
+### Three things arrive only as text
+
+The Messages characteristic (`000A`) is not a debug channel. These exist
+nowhere else:
+
+- the `[FT1]` fatigue percentages — `EVT_FATIGUE_WARN` carries only a *count*
+  of signs, so without the text the therapist's fatigue chart is empty
+- the per-rep `biceps=NN%` activation ratio — the `[FC2]` criterion
+- all of calibration's results: the rest level, the noise floor, the maximum
+  contraction, the comfortable bend
+
+`lib/protocol/sleeve_messages.dart` parses them. A regex that silently stops
+matching does not throw — it yields a line classified as `other`, which looks
+exactly like a line the firmware never sent. That is why the parser has its
+own checker.
+
+---
+
+## Verification
+
+```bash
+flutter analyze && flutter test       # the real thing — run this
+python3 tool/check_dart.py            # structural cross-check, no SDK needed
+python3 tool/check_message_patterns.py
 ```
 
-### iOS — needs a Mac
+### `tool/check_dart.py`
 
-There is no way around this. The iOS toolchain runs on macOS only; Windows
-cannot produce an iOS build at all, and no Flutter flag changes that. The same
-Dart code compiles unchanged — it is purely a toolchain problem.
+Checks, across every file in `lib/` and `test/`: delimiters balance, every
+import resolves (relative and `package:rehabsense/…`), no public top-level
+name is declared twice, every capitalised identifier is declared or imported
+or a known SDK name, every `Type.member` access names a real member, and every
+named argument matches a real constructor parameter.
 
-Three ways through it, in order of what makes sense for a December demo:
+Name-level, not a compile: a clean run means the names line up. It is the
+reason a few thousand lines of Dart written without a toolchain are not simply
+unchecked. An SDK name it has not heard of shows up as a finding; adding it to
+the list in that file is a one-line fix.
 
-1. **Borrow a Mac.** Clone, `flutter create --platforms=ios .`, apply
-   `platform/ios-Info.plist.patch.md`, sign with a free Apple ID, `flutter run`.
-   A free account installs on a connected device for 7 days, which is enough
-   to prove platform BLE behaviour. Cheapest and fastest.
-2. **macOS CI.** Codemagic or a GitHub Actions `macos-latest` runner builds
-   the IPA from this repo with no Mac in the room. Distributing it to a device
-   still needs a paid account.
-3. **Paid Developer Program**, $99/yr. Only worth it if the sleeve has to be
-   demonstrated on an iPhone specifically, or if TestFlight is wanted.
+### `tool/check_message_patterns.py`
 
-Until then Android is the development target, exactly as the PRD scopes it.
+Extracts the regexes from the parser and runs them against sample lines built
+from the firmware's own `Log.printf` format strings — 28 positive cases and 9
+negative ones, each commented with the firmware file it came from. Both halves
+come from real source, so if `rep.cpp` changes its format the sample changes
+with it and the pattern fails here.
+
+`test/sleeve_messages_test.dart` runs the same corpus in Dart. The Python
+version exists because it can run with no SDK.
+
+---
 
 ## Layout
 
 ```
 lib/
-  main.dart
-  protocol/        the wire format, and nothing else
-    constants.dart     UUIDs, rates, frame sizes, MTU floor
-    enums.dart         every wire enum and flag bit
-    frames.dart        header, EMG, IMU, features, events
-    status.dart        device_status_t            (packed, 29 B)
-    calib.dart         calib_record_t             (padded, 104 B)
-    xfer.dart          xfer_info_t                (packed, 63 B)
-    config_tlv.dart    the PRD 5.9.1 parameters
-    commands.dart      control opcodes, RepComplete payload
+  main.dart                 app, device, session state, saved-session store
+  protocol/                 the wire format. Mirrors the firmware; change both sides together
+    constants.dart          UUIDs, frame sizes, scaling
+    enums.dart              opcodes, events, states, flag bits
+    frames.dart             frame encode/decode, incl. the features_t pad byte
+    commands.dart           command builders, event payloads, TEXT (0x20)
+    sleeve_messages.dart    the printed lines: reassembly and parsing
+    config_tlv.dart         runtime configuration
+    calib.dart status.dart xfer.dart
   ble/
-    rehab_device.dart  the link: scan, MTU, subscribe, commands
-    seq_tracker.dart   raw-stream sequence accounting, ACK and backfill
-    permissions.dart   the Android runtime permission dance
+    rehab_device.dart       the link, and nothing else
+    permissions.dart seq_tracker.dart
   session/
-    session_state.dart what the sleeve has told us
+    session_state.dart      one place holding what the sleeve has said
+    rep_log.dart            the rep log, and the phase reconstruction
+    session_record.dart     a finished session, saveable and comparable
+    session_store.dart      saved sessions on the phone, per patient
+  sim/demo_driver.dart      a synthetic sleeve, frames and printed lines
   ui/
-    theme.dart           colours and type for a phone at arm's length
-    app.dart             shell, connect flow
-    patient_screen.dart  the exercise view
-    arm_pose_painter.dart  target versus actual, drawn
-    calibration_screen.dart
-    settings_screen.dart   the PRD 5.9.1 parameters, live
-    clinician_screen.dart  bridge control and the Wi-Fi fetch
-  bridge/
-    clinician_server.dart  HTTP + WebSocket, on the phone
-    clinician_page.dart    the page it serves, self-contained
-  xfer/
-    session_fetch.dart   post-session bulk download, resumable
-test/
-  protocol_golden_test.dart   wire format against the Python reference
-  seq_tracker_test.dart       ACK and gap accounting
-  arm_pose_test.dart          pose logic, and the painter under abuse
-tool/
-  gen_golden.py   regenerates the golden test's expected bytes
-platform/
-  AndroidManifest.xml          overwrite the generated one with this
-  ios-Info.plist.patch.md      what to add on a Mac
+    app.dart                the shell: five tabs, the connect pane
+    patient_screen.dart calibration_screen.dart session_screen.dart
+    progress_screen.dart therapist_screen.dart developer_screen.dart
+    settings_screen.dart
+    arm_pose_painter.dart   the anatomical arm
+    charts/                 chart kit: palette, scales, traces, bars, trends
+    theme.dart
+  bridge/                   the clinician bridge: an HTTP + WebSocket page
+  xfer/session_fetch.dart   the post-session Wi-Fi fetch (ESP-IDF firmware only)
+tool/                       the two checkers, and the golden-vector generator
 ```
 
-## The protocol layer, and why it is tested the way it is
+---
 
-`lib/protocol/` is a byte-for-byte port of `../python/rehab_protocol.py`. Every
-expected byte string in `test/protocol_golden_test.dart` was produced by
-**running that Python module**, not by reading the header comments and not by
-this Dart code.
+## The arm visualizer
 
-That distinction is the whole value of the test. The Python host's status
-parser once carried explicit pad bytes that the packed C struct does not have,
-so every field after `battery_mv` was read from the wrong offset — and its own
-test suite passed the entire time, because it parsed what it itself built.
-Only a real device showed the fault. A port verified against itself would
-reproduce the bug and call it green.
+`ui/arm_pose_painter.dart`. An anatomical limb rather than two sticks, because
+a line with a dot on it answers only the first of the patient's three
+questions.
 
-Three layout traps live in here, all of them silent failures rather than
-crashes:
+The biceps belly carries **two signals on two channels, deliberately kept
+apart**:
 
-- **`features_t` is not packed.** It leads with a `uint64_t`, so the compiler
-  inserts a pad byte after `rep_state` and `sizeof` is 40, not 33. Read it
-  without the pad and `rep_count`, `comp_flags` and `sig_flags` all shift one
-  byte left: wrong rep counts and wrong compensation flags on screen, no error
-  anywhere. Both layouts are accepted and chosen by body length, so this keeps
-  working if `features_t` is ever marked packed.
-- **`device_status_t` and `xfer_info_t` are packed.** No padding at all.
-- **`host_time_offset_us` is signed** and routinely negative. The high word
-  must come from an arithmetic shift, not integer division, or it comes back
-  as a large positive number.
+- **shape** follows the elbow angle — the belly shortens and thickens as the
+  elbow flexes, because that is what a contracting biceps does, and it happens
+  whether or not the muscle is doing the work
+- **colour** follows the EMG envelope — cool and flat at rest, warm under load
 
-After any deliberate wire change: run `python3 tool/gen_golden.py`, paste the
-new byte strings into the test, and change the firmware in the same commit.
-If it produces different bytes and nobody meant to change the format, something
-has drifted and the test is doing its job.
+So an arm somebody else is lifting shows a flexed shape in a cold colour. That
+is visibly different from a rep the patient drove, and it is the exact case a
+motion-only device cannot show at all.
 
-## Two platform facts that shape the BLE layer
+Both arms are still drawn from the two numbers the device already derives —
+`elbow_angle_deg` and `upper_arm_dev_deg`. Nothing here re-derives orientation
+from raw accelerometer and gyroscope data.
 
-**Android starts at a 23-byte MTU.** Every frame here is up to 180 bytes, so
-the app must `requestMtu(247)` after connecting and before subscribing, or
-notifications arrive truncated. iOS negotiates 185 on its own and needs no
-request — which is exactly why the firmware caps frames at 180 rather than the
-244 a 247-byte MTU would allow.
+---
 
-**Leave the raw stream off on a phone.** At ~10.4 kB/s the full-rate EMG and
-IMU stream is near the practical ceiling of a phone BLE link, and the live view
-does not need it: features arrive at 20 Hz and the device has already done the
-analysis. Turn it on deliberately for a debugging session (`CfgTag.rawStream`),
-not by default. The clinical record travels over Wi-Fi instead.
+## The charts
 
-## Why the clinician view is served by the phone
+`ui/charts/`. Two rules they do not break.
 
-The obvious-looking design — sleeve joins the clinic Wi-Fi and streams
-everywhere — is not available, and not by accident:
+**No dual axes.** Elbow angle is degrees and muscle effort is a percentage of
+a calibrated squeeze. On two y-scales in one frame they appear to cross, and
+the crossing point is an artefact of the two scalings — it means nothing and it
+is the first thing the eye goes to. They are two panels sharing one time axis,
+which makes the true comparison (*when* the muscle worked against *when* the
+arm moved) the easy one to read. That comparison is what diagnoses a passive
+lift.
 
-- The ESP32-S3 has **one 2.4 GHz radio**. Running Wi-Fi and a saturated BLE
-  link together means software coexistence arbitrating between them, which
-  costs throughput on both and makes BLE miss connection events. The live
-  stream is the thing that must not degrade.
-- So the firmware **refuses to start a transfer while `OPERATIONAL`**, and
-  `session_xfer.h` is explicit that this is not a policy the host can override.
-- The sleeve's Wi-Fi is a **SoftAP with no route anywhere**. Station mode
-  needs credential provisioning and is deliberately out of this revision.
+**Status colours stay status.** Green, amber and red mean on target, needs
+attention, problem. They are never pressed into service as "series 4", and
+they always carry a label or a shape as well.
 
-So the phone bridges. It holds the BLE link, renders the patient view, and
-relays a thinned JSON feed to a page it serves itself. The clinician opens the
-phone's address on the same network; nothing is deployed and no account exists.
-Swapping that for a cloud relay later is a URL change behind the same
-interface.
+The series palette is not the UI palette. `RehabColors.actual` and `.muscle`
+are bright because the patient view is read at arm's length; both sit at OKLCH
+L ≈ 0.77, outside the 0.48–0.67 band a dark chart surface needs, so two series
+in those colours fight each other and the surface. `ChartPalette.series` is
+three validated darker siblings of the same hues — lightness band, chroma
+floor, CVD separation (worst adjacent pair ΔE 20.4 protan / 13.6 tritan),
+normal-vision floor (ΔE 21.2) and contrast all pass against surface
+`#181D23`. Three slots, assigned in fixed order, never cycled.
 
-Sequence for a full session:
+---
 
-```
-connect BLE  →  SET_TIME  →  GET_CONFIG  →  calibration (6 steps)
-    →  START_SESSION  →  live: features 20 Hz, events, status
-                         clinician page updating in realtime
-    →  STOP_SESSION  →  START_TRANSFER  →  join sleeve SoftAP
-    →  HTTP GET the record  →  rejoin normal Wi-Fi  →  STOP_TRANSFER
-```
+## What the sleeve does not report
 
-## Status
+Stated here because each one is a place where the app could be made to look
+more capable than the hardware is, and should not be.
 
-| | |
-|---|---|
-| Protocol layer + golden tests | written, tests pass by construction against the Python reference |
-| BLE client, sequence accounting, live session state | written, unit-tested |
-| Patient view and pose visualisation | written, painter unit-tested |
-| Calibration wizard | written |
-| Live parameter editing | written |
-| Clinician bridge | written |
-| Session fetch | written |
-| Demo mode (synthetic sleeve) | written |
-| **Any of it against real hardware** | **not yet — see below** |
+| Not reported | Consequence |
+| --- | --- |
+| Lift / hold / lower split | Reconstructed in the app by timing `rep_state` at 20 Hz. Labelled as reconstructed everywhere it appears, including the CSV column names |
+| Median frequency | Always zero: it needs the MyoWare's RAW output and the prototype uses ENV. The therapist view leans on the sleeve's `[FT1]` comparison instead |
+| Trunk lean | Separating a lean from a shoulder hike needs common-mode rotation of both IMUs. A lean is reported as a shoulder hike, and the Therapist tab says so |
+| `RepState.extendedHold` | The sleeve's cycle is four states and it counts on crossing the finish angle, not after a confirming hold. Nothing may *require* this state |
+| Wi-Fi session transfer | Every `START_TRANSFER` is answered `FAILED`. The fetch card says so rather than letting someone wait |
+| Session backfill | Nothing is buffered, so there is no gap recovery. The app therefore does not subscribe to the raw stream by default — see below |
 
-### Nothing here has run yet
+### The raw stream is off by default
 
-This was written against the frozen interface in `ble_service.h` and the
-Python reference, on a machine with no Flutter toolchain, so it has never been
-compiled and has never seen a sleeve. The byte layouts are verified against
-golden vectors generated from `rehab_protocol.py`, and the sequence and pose
-logic have unit tests — but `flutter pub get && flutter test && flutter run`
-is the first real check, and expect to fix things on that first pass.
+Not an optimisation. NimBLE has about a dozen notification buffers, and
+subscribing to the raw characteristic costs ~17 IMU frames a second whether or
+not anything decodes them. That burst is what used to exhaust the buffers and
+silently discard printed lines and rep events — the bug the firmware's 28 Oct
+fix was written for. Not asking for data nothing reads keeps the headroom that
+fix bought.
 
-First bring-up, in this order:
+Against the ESP-IDF firmware, which does buffer a session and serve backfill,
+set `RehabDevice.wantRawSamples` before connecting: it also controls gap
+detection and the ACK that frees the device's storage.
 
-1. `flutter test` — pure Dart, no device. If the golden tests fail, the port
-   and the firmware disagree and that is worth resolving before anything else.
-2. **nRF Connect on the phone, before this app.** It shows the GATT table and
-   raw notification bytes with no code at all, which separates "the firmware
-   is not advertising what we think" from "the app is wrong".
-3. `flutter run`, connect, and watch the Settings tab: it shows the negotiated
-   MTU, frames received, and what has been acknowledged. If the MTU comes back
-   under 183 the raw stream will not fit.
+---
 
-## Working without a sleeve
+## Demo mode
 
-Every screen past the connect pane needs a live link, so with no hardware the
-app opens and stops there. **Demo mode** is the way round that: the button is
-on the connect screen, below the divider.
+No sleeve needed. It builds **real wire-format frames** with the same builders
+the golden tests use and pushes them through
+`RehabDevice.injectNotification`, so the same decoders, sequence tracker and
+session state run as with a real sleeve. If the pad byte in `features_t` were
+wrong, demo mode would show wrong rep counts too.
 
-`lib/sim/demo_driver.dart` builds real wire-format frames with the same
-builders the golden tests use and pushes them through
-`RehabDevice.injectNotification`, so they run the same decoders, the same
-sequence tracker and the same session state as a real sleeve. Nothing above
-the radio is stubbed — if the `features_t` padding were wrong, demo mode would
-show wrong rep counts too.
+It also emits the **printed lines**, in the firmware's own formats — otherwise
+it would exercise none of the paths most likely to be wrong: the fatigue chart
+would be empty, the rep table's pace column blank and the calibration console
+silent.
 
-The set is scripted so the interesting cases show up rather than twenty
-identical reps:
+Scripted so the interesting cases show up rather than twenty identical reps: a
+shoulder-hike rep flagged and scored down, a passive swing that counts
+nothing, a partial that stops short, the fatigue comparison walking up to a
+sign, and the set-complete rating prompt.
 
-- median frequency falling across the set, with the rest cue once it has
-  fallen far enough
-- every fifth rep hikes the shoulder: flagged live, named on screen, scored
-  down (demo item 3)
-- rep four is a passive swing — the angle rises with the biceps quiet, so no
-  rep starts (demo item 4)
-- `START_TRANSFER` during a set is refused, the way the firmware refuses it
+It proves nothing about Bluetooth itself — connection intervals, permissions,
+MTU, throughput. Every screen says DEMO while it runs, because synthetic data
+that is not obviously synthetic is how a demo ends up quoted as a result.
 
-Changing the confirming hold in Settings visibly changes the demo's cadence,
-which is a quick way to see the live-parameter path work (demo item 6). The
-seed is fixed, so a rehearsed walkthrough behaves the same every time.
+---
 
-What it cannot tell you: anything about platform BLE behaviour, connection
-intervals, permissions, MTU negotiation or throughput. Those are exactly the
-things the PRD says stay phone-side work against real hardware.
+## Saved sessions
 
-`EVT_REP_COMPLETE` is **not yet emitted by the firmware**. `rep_cycle.c`
-produces a `rep_result_t` and the event path can carry 16 payload bytes, but
-`main.c` does not wire it up, so `RepComplete` here implements the proposed
-16-byte layout from `rehab_protocol.py`. The simulator emits it, so this path
-is exercised — but per-rep scores will be empty against real firmware until
-that wiring lands. Adopt, amend or replace the layout then, on both sides at
-once.
+One JSON file per session under the app's documents directory, indexed by
+reading the directory. One corrupt file costs one session rather than the whole
+history, and a session is written once and then only read.
+
+**The configuration snapshot is data, not metadata.** A rep that reached 95°
+means something different against a 90° target than against a 120° one, so the
+thresholds in force are part of the record. Without them the progress charts
+would quietly become meaningless the first time a therapist changed the
+target.
+
+Per patient, always: one sleeve and one phone get shared between people, and
+merging two patients' reps into one trend line is worse than having no trend
+line — it produces a chart that looks like data and is not.
+
+Export is the files concatenated into one JSON document, so it restores on
+another phone and can be read by hand. Import is additive and keyed on session
+id, so importing the same file twice changes nothing.
+
+---
+
+## Still open
+
+| Open | Needs |
+| --- | --- |
+| `flutter analyze` and `flutter test` | A machine with the SDK. Neither has been run — see the top of this file |
+| A real connection to the S3 firmware | The firmware has never been flashed. Both sides are built; neither has met the other |
+| The MTU path on Android | Android starts every connection at 23 bytes. iOS negotiates 185 on its own, which is why frames are capped at 180 |
+| Rep-complete fidelity | `RepComplete`'s 16-byte layout is the proposal from `rehab_protocol.py`. The Arduino firmware emits it; the ESP-IDF firmware does not wire it up yet |
+| Pain/effort scale wording | Clinical review. The 0–10 anchors here are the usual ones, not a validated instrument |

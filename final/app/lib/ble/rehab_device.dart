@@ -30,6 +30,7 @@ import '../protocol/config_tlv.dart';
 import '../protocol/constants.dart';
 import '../protocol/enums.dart';
 import '../protocol/frames.dart';
+import '../protocol/sleeve_messages.dart';
 import '../protocol/status.dart';
 import '../protocol/xfer.dart';
 import 'seq_tracker.dart';
@@ -77,6 +78,8 @@ class RehabDevice {
   final _emg = StreamController<EmgFrame>.broadcast();
   final _imu = StreamController<ImuFrame>.broadcast();
   final _problems = StreamController<String>.broadcast();
+  final _messages = StreamController<SleeveMessage>.broadcast();
+  final SleeveTextAssembler _text = SleeveTextAssembler();
 
   Stream<LinkState> get linkState => _link.stream;
   Stream<FeatureFrame> get features => _features.stream;
@@ -91,6 +94,13 @@ class RehabDevice {
   /// live view does not use.
   Stream<EmgFrame> get rawEmg => _emg.stream;
   Stream<ImuFrame> get rawImu => _imu.stream;
+
+  /// Every line the sleeve prints, reassembled and classified.
+  ///
+  /// Not a debug channel. The fatigue trend percentages, the per-rep
+  /// activation ratio and the whole of calibration's output arrive only here —
+  /// see `protocol/sleeve_messages.dart`.
+  Stream<SleeveMessage> get messages => _messages.stream;
 
   /// Decode failures and link complaints, for a debug panel. Never fatal: a
   /// corrupt frame must not end a session.
@@ -321,8 +331,33 @@ class RehabDevice {
     await _subscribe(kUuidStatus, _onStatusValue);
     await _subscribe(kUuidConfig, _onConfigValue);
     await _subscribe(kUuidXfer, _onXferValue);
-    await _subscribe(kUuidRaw, _onRawValue);
-    await _subscribe(kUuidBackfill, _onBackfillValue);
+    // The raw stream is subscribed only when something wants it.
+    //
+    // This is not an optimisation. On the shipping sleeve NimBLE has about a
+    // dozen notification buffers, and subscribing to the raw characteristic
+    // costs ~17 IMU frames a second whether or not anything decodes them.
+    // That burst is what used to exhaust the buffers and silently discard
+    // printed lines and rep events — the bug the firmware's 28 Oct fix was
+    // written for. Not asking for data nothing reads keeps the headroom that
+    // fix bought.
+    //
+    // Against the ESP-IDF firmware, which buffers a session and serves
+    // backfill, this also switches off gap detection and the ACK that frees
+    // its storage — so turn [wantRawSamples] on before connecting if you are
+    // working with that firmware and care about the recorded session.
+    if (wantRawSamples) {
+      await _subscribe(kUuidRaw, _onRawValue);
+      await _subscribe(kUuidBackfill, _onBackfillValue);
+    }
+
+    // Messages last, and deliberately not fatal if absent: 000A is a
+    // RehabSense extension, so firmware built to the frozen interface alone
+    // will not have it. Everything except the fatigue trend and the
+    // calibration detail still works without it.
+    if (_char(kUuidMessages) != null) {
+      _text.reset();
+      await _subscribe(kUuidMessages, _onMessagesValue);
+    }
     return true;
   }
 
@@ -365,6 +400,13 @@ class RehabDevice {
     await _write(Commands.getConfig());
     await readCalibration();
     await readStatus();
+
+    // `i` makes the sleeve print its `# LIVE` and `# PARAMS` lines. Worth
+    // asking for on every connect, including a reconnect mid-session: it is
+    // the only way a host that joined late learns the thresholds in force and
+    // the counts so far. Harmless against firmware without the TEXT opcode —
+    // an unknown opcode is ignored.
+    await _write(Commands.requestStatusLines());
   }
 
   void _onDropped() {
@@ -464,6 +506,14 @@ class RehabDevice {
     }
   }
 
+  /// Printed lines. Reassembled, classified, forwarded. No rendering here.
+  void _onMessagesValue(Uint8List v) {
+    for (final line in _text.add(v)) {
+      if (_messages.isClosed) return;
+      _messages.add(parseSleeveLine(line));
+    }
+  }
+
   void _onBackfillValue(Uint8List v) {
     if (v.length < kFrameHeaderBytes) return;
     final h = FrameHeader.parse(ByteData.sublistView(v));
@@ -524,6 +574,66 @@ class RehabDevice {
   Future<bool> requestRecalibration() => _write(Commands.requestRecalibration());
 
   Future<bool> testHaptic(HapticPattern p) => _write(Commands.hapticTest(p));
+
+  /// Run a Serial Monitor command on the sleeve. See [Cmd.text].
+  ///
+  /// A malformed command is rejected here rather than sent: the sleeve's line
+  /// buffer silently drops the overflow, so an over-long string would arrive
+  /// as a different but perfectly valid command.
+  Future<bool> sendText(String command) async {
+    final Uint8List payload;
+    try {
+      payload = Commands.text(command);
+    } catch (e) {
+      _complain('$e');
+      return false;
+    }
+    return _write(payload);
+  }
+
+  /// `n` — advance the current calibration step. The sleeve's calibration is
+  /// a sequence the patient walks at their own speed, and this is the only way
+  /// to drive it; [startCalibration] starts the whole protocol.
+  Future<bool> calibrationNext() => sendText('n');
+
+  /// `g` — finish calibration and start counting reps.
+  Future<bool> calibrationGo() => sendText('g');
+
+  /// `z` — re-zero the straight-arm reference without the EMG steps. The fix
+  /// for a drifted zero mid-session, which otherwise reads as the patient
+  /// having lost range.
+  Future<bool> reZero() => sendText('z');
+
+  /// `e` — EMG signal-quality test: 3 s relaxed, 3 s squeezing, then a
+  /// verdict. Results arrive on [messages].
+  Future<bool> runEmgTest() => sendText('e');
+
+  /// `b` — toggle the guided pace beats.
+  Future<bool> togglePace() => sendText('b');
+
+  /// `i` — ask for the `# LIVE` and `# PARAMS` lines.
+  Future<bool> requestStatusLines() => sendText('i');
+
+  /// One haptic pattern by the sleeve's own numbering, 1–12. Reaches the
+  /// guided-pace and rest-countdown cues that the frozen pattern ids do not
+  /// cover.
+  Future<bool> playHapticIndex(int n) => sendText('h$n');
+
+  /// Play a random pattern without saying which. The only honest test of
+  /// whether a vibration vocabulary is actually distinguishable.
+  Future<bool> hapticBlindTest() => sendText('hx');
+  Future<bool> hapticReveal() => sendText('h?');
+  Future<bool> hapticStop() => sendText('h0');
+
+  /// Set the target angle and lock it against the sleeve's own adaptive
+  /// adjustment. The sleeve rejects anything outside 40–140°.
+  Future<bool> setTargetLocked(int degrees) => sendText('t$degrees');
+  Future<bool> toggleTargetLock() => sendText('tl');
+  Future<bool> clearSavedProgress() => sendText('tr');
+  Future<bool> showTarget() => sendText('t?');
+
+  /// `r` — start a new session, counts and sets back to zero.
+  Future<bool> newSession() => sendText('r');
 
   Future<bool> powerOff() => _write(Commands.powerOff());
 
@@ -649,6 +759,8 @@ class RehabDevice {
         _onRawValue(bytes);
       } else if (u == kUuidBackfill.toLowerCase()) {
         _onBackfillValue(bytes);
+      } else if (u == kUuidMessages.toLowerCase()) {
+        _onMessagesValue(bytes);
       } else {
         _complain('Injected a frame for an unknown characteristic $uuid.');
       }
@@ -661,6 +773,14 @@ class RehabDevice {
 
   Future<void> disconnect() async {
     _wantConnection = false;
+
+    // A line left mid-flight would otherwise be lost. It is usually the most
+    // interesting one, because the link tends to drop while something is
+    // being said about it.
+    for (final line in _text.flush()) {
+      if (!_messages.isClosed) _messages.add(parseSleeveLine(line));
+    }
+
     await _connSub?.cancel();
     _connSub = null;
     for (final s in _subs) {
@@ -690,5 +810,6 @@ class RehabDevice {
     await _emg.close();
     await _imu.close();
     await _problems.close();
+    await _messages.close();
   }
 }

@@ -84,3 +84,26 @@ final String kUuidConfig = _uuid(0x0008);
 
 /// `xfer_info_t`: where to fetch a sealed session from. Read and notify.
 final String kUuidXfer = _uuid(0x0009);
+
+/// Every line the sleeve prints for people, the same text as its Serial
+/// Monitor. Notify. A RehabSense extension, not part of the frozen frame
+/// protocol: the payload is UTF-8 text, newline-terminated, not a frame.
+///
+/// Three things reach the host only through here, so it is not optional:
+///
+/// - the `[FT1]` fatigue trend numbers — range, effort and time against the
+///   session's first reps. `EVT_FATIGUE_WARN` carries only a count of signs.
+/// - the `biceps=NN%` activation ratio over the lift, which is what the
+///   `[FC2]` passive-lift rejection is judged on
+/// - every calibration prompt and result, and the EMG signal-quality test
+///
+/// The sleeve sends these only once a client subscribes, and queues them so a
+/// busy link delays a line rather than dropping it. Before that fix most
+/// calibration output never arrived at all — see the firmware's
+/// `BLE_PROTOCOL.md`.
+final String kUuidMessages = _uuid(0x000A);
+
+/// Longest text notification the sleeve emits on [kUuidMessages]. Several
+/// short lines share one notification, and a long line is split across
+/// several, so a reassembler must buffer until it sees a newline.
+const int kMessageChunkMaxBytes = 180;

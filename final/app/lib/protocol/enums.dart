@@ -34,6 +34,22 @@ abstract final class Cmd {
   /// the live stream wins.
   static const int startTransfer = 0x0D;
   static const int stopTransfer = 0x0E;
+
+  /// A RehabSense extension: run a Serial Monitor command as though it had
+  /// been typed. Payload is ASCII, no terminator.
+  ///
+  /// This exists because the sleeve's own command vocabulary is richer than
+  /// the frozen opcode table and always will be — `z` to re-zero, `b` to
+  /// toggle guided pace, `t110` to set and lock a target, `e` for the EMG
+  /// signal test, `i` for a status dump, `h1`..`h12` for one haptic pattern,
+  /// `tr` to clear saved progress. An opcode per command would mean a
+  /// firmware *and* host change for each one; this needs neither.
+  ///
+  /// It is also the only way to drive calibration step by step: `n` advances a
+  /// step, `g` starts the reps. During calibration the sleeve handles TEXT,
+  /// ABORT, HAPTIC_TEST, GET_CONFIG, SET_TIME and acks, and defers the rest
+  /// until calibration finishes.
+  static const int text = 0x20;
 }
 
 enum RehabEvent {
@@ -105,6 +121,12 @@ enum FwState {
 /// position, so the score covers the eccentric phase and the haptic lands at
 /// a moment the patient is already stationary. The patient view must not
 /// claim a rep before [extendedHold] resolves.
+/// The shipping firmware never sends [extendedHold]. Its own cycle is four
+/// states (REST, RISING, PEAK, RETURNING) and it counts the rep on crossing
+/// back below the finish angle rather than after a confirming hold. So
+/// [extendedHold] is reachable only from the ESP-IDF firmware and the
+/// simulator; anything that must work against the sleeve has to behave
+/// correctly without ever seeing it. Nothing here may *require* it.
 enum RepState {
   ready(0, 'Ready'),
   concentric(1, 'Lifting'),
@@ -115,6 +137,20 @@ enum RepState {
   const RepState(this.wire, this.label);
   final int wire;
   final String label;
+
+  /// The phase a rep's elapsed time should be attributed to.
+  ///
+  /// The sleeve reports no lift/hold/lower split of its own — the printed
+  /// `# REP` line carries one total duration — so the app derives the split
+  /// by timing these states across the live feature stream. That is a
+  /// reconstruction, not a device measurement, and it is labelled as such
+  /// wherever it is shown.
+  bool get isLift => this == concentric;
+  bool get isHold => this == peak;
+  bool get isLower => this == eccentric || this == extendedHold;
+
+  /// True while a repetition is under way, which is every state but [ready].
+  bool get inRep => this != ready;
 
   static RepState fromWire(int v) =>
       values.firstWhere((e) => e.wire == v, orElse: () => RepState.ready);
@@ -243,6 +279,21 @@ const int compShoulder = 1 << 0;
 const int compTrunk = 1 << 1;
 const int compSwing = 1 << 2;
 
+/// Lowered the arm faster than the drop limit instead of controlling it —
+/// `[FC5]`, a RehabSense extension to the frozen flag set.
+///
+/// Worth its own bit rather than folding into [compSwing]: swinging is a fault
+/// of the lift and momentum is the cause, whereas dropping is a fault of the
+/// *return*, where a weak limb usually fails first. They want different
+/// coaching, so they cannot share a name.
+const int compDrop = 1 << 3;
+
+/// The sleeve never raises [compTrunk]: true trunk lean is common-mode
+/// rotation of both IMUs and needs the ESP-IDF firmware's fusion to separate
+/// it from a shoulder hike. Here a lean shows up as [compShoulder], which is
+/// the honest reading of what two upper-arm-referenced IMUs can see.
+const int compNotReported = compTrunk;
+
 const int sigDegradedA = 1 << 0;
 const int sigDegradedB = 1 << 1;
 const int sigMvcUnreliable = 1 << 2;
@@ -262,4 +313,23 @@ List<String> compNames(int flags) => [
       if (flags & compShoulder != 0) 'shoulder hike',
       if (flags & compTrunk != 0) 'trunk lean',
       if (flags & compSwing != 0) 'arm swing',
+      if (flags & compDrop != 0) 'dropped',
+    ];
+
+/// What to tell the patient to change, per flag.
+///
+/// Named faults, not colours: "flagged" tells someone their rep was wrong
+/// without telling them what to do differently, and a patient who cannot act
+/// on feedback stops trusting it. The wording mirrors the sleeve's own printed
+/// coaching lines so the app and the Serial Monitor never contradict.
+Map<int, String> get compAdvice => const {
+      compShoulder: 'Keep your elbow by your side and sit tall',
+      compTrunk: 'Stay upright — try not to lean into the lift',
+      compSwing: 'Lift slowly, using your biceps rather than momentum',
+      compDrop: 'Lower slowly — try not to let the arm drop',
+    };
+
+List<String> compAdviceFor(int flags) => [
+      for (final e in compAdvice.entries)
+        if (flags & e.key != 0) e.value,
     ];

@@ -9,6 +9,7 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
 import 'ble/rehab_device.dart';
 import 'session/session_state.dart';
+import 'session/session_store.dart';
 import 'ui/app.dart';
 import 'ui/theme.dart';
 
@@ -31,9 +32,16 @@ class _RehabSenseAppState extends State<RehabSenseApp> {
   late final RehabDevice _device = RehabDevice();
   late final SessionState _state = SessionState(_device);
 
+  /// Saved sessions. Owned here rather than by a screen, because the connect
+  /// pane offers the progress view before any screen that reads it exists, and
+  /// because a store rebuilt on every tab change would re-read the directory
+  /// every time.
+  late final SessionStore _store = SessionStore();
+
   @override
   void dispose() {
     _state.dispose();
+    _store.dispose();
     _device.dispose();
     super.dispose();
   }
@@ -44,7 +52,7 @@ class _RehabSenseAppState extends State<RehabSenseApp> {
       title: 'RehabSense',
       debugShowCheckedModeBanner: false,
       theme: buildRehabTheme(),
-      home: AppShell(device: _device, state: _state),
+      home: AppShell(device: _device, state: _state, store: _store),
     );
   }
 }
