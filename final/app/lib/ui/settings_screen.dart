@@ -235,10 +235,12 @@ class SettingsScreen extends StatelessWidget {
               const SizedBox(height: 18),
               _Section('Haptic bench test'),
               Text(
-                'Fires a pattern on demand. One motor, seven messages, told '
-                'apart by rhythm — an ERM couples frequency to amplitude, so '
-                '"stronger" also means "faster" and cannot carry a separate '
-                'meaning.',
+                'Fires a pattern on demand, wherever that cue normally plays. '
+                'Seven messages, told apart by rhythm — an ERM couples '
+                'frequency to amplitude, so "stronger" also means "faster" '
+                'and cannot carry a separate meaning. The Developer tab '
+                'reaches the sleeve\'s full list and can aim a cue at one of '
+                'the two motors.',
                 style: RehabText.body.copyWith(fontSize: 13),
               ),
               const SizedBox(height: 12),

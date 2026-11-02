@@ -10,6 +10,18 @@ bool  emgOn = false;
 float emgOnMv = 0, emgOffMv = 0;
 static uint16_t aboveMs = 0, belowMs = 0;
 
+// =========================================================================
+// Where the signal comes from. Two sources, one contract: emg_begin() sets up
+// the hardware and emg_read_mv() returns the envelope in millivolts. Nothing
+// below this line knows which it got, and neither does any other module - the
+// rep counter, the fatigue indicators and the printed effort percentages all
+// work from emgMv.
+//
+// RS_EMG_SRC in pins.h selects, and says why the PCB's source is not written.
+// =========================================================================
+
+#if RS_EMG_SRC == RS_EMG_ADC1
+
 void emg_begin() {
   // ESP32-S3 defaults to 13-bit; the original board gave 12. Pinned explicitly
   // so the numbers in a log mean the same thing whichever board produced it.
@@ -29,6 +41,25 @@ float emg_read_mv() {
   for (int i = 0; i < 4; i++) sum += analogReadMilliVolts(PIN_EMG_BICEPS);
   return sum / 4.0f;
 }
+
+#elif RS_EMG_SRC == RS_EMG_ADS131M02
+
+// The PCB's front end, which is not a MyoWare and not on ADC1. See pins.h for
+// why this is a build failure rather than a stub: a wrong number here is not a
+// wrong reading, it is a wrong effort percentage, a wrong fatigue verdict and a
+// wrong rep count, all of which look entirely plausible.
+#error "RS_EMG_ADS131M02 is not implemented. The PCB's EMG path needs, from the \
+board rather than from the schematic's net names: (1) the ADS131M02's CS pin, \
+(2) its DRDY pin, (3) the CLKIN rate the LTC6903 is programmed to, and (4) the \
+front end's gain and the ADC's oversampling ratio. It also needs a decision \
+about the second channel, since the part has two and the board brings out two \
+electrode jacks. Supply those and this backend is a small module; guess them \
+and every number the sleeve reports is confidently wrong. Build without \
+-DRS_EMG_SRC to use the MyoWare path on ADC1."
+
+#else
+  #error "RS_EMG_SRC must be RS_EMG_ADC1 or RS_EMG_ADS131M02 (see pins.h)."
+#endif
 
 void emg_update() {
   emgMv += EMG_SMOOTH * (emg_read_mv() - emgMv);

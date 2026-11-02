@@ -126,22 +126,49 @@ lib adafruit/Adafruit_BusIO                  Adafruit_BusIO
 lib h2zero/NimBLE-Arduino                    NimBLE-Arduino "$NIMBLE_TAG"
 
 # ---- compile -----------------------------------------------------------
-# Three configurations, because each answers a different question:
-#   XIAO, PSRAM off   the shipping board as the IDE hands it to you
-#   XIAO, PSRAM OPI   the shipping board set up as its hardware actually is
-#   S3 Dev Module     the board the PRD names, to prove one build serves both
+# Seven configurations, because each answers a different question:
+#   XIAO, SPI            the default, and the architecture the PCB is built
+#                        to: SPI IMUs, TCA9543A haptics, on the module the
+#                        PCB carries. Also the tightest pin budget - ten of
+#                        the XIAO's eleven header pins - so a regression that
+#                        adds a pin fails here first
+#   XIAO, PSRAM OPI      the same, set up as the hardware actually is
+#   S3 Dev Module, SPI   the same architecture on the board the PRD names
+#   XIAO / Dev, I2C x2   the breadboard, as the wiring diagram draws it.
+#                        Kept because the board exists and gets wired first
+#
+# The point of compiling every one is that pins.h chooses between two boards,
+# two sensor buses and two haptic topologies, and a #if that only ever takes
+# one branch is a branch nobody has checked.
 fail=0
-for fqbn in "esp32:esp32:XIAO_ESP32S3" \
-            "esp32:esp32:XIAO_ESP32S3:PSRAM=opi" \
-            "esp32:esp32:esp32s3"; do
-  say "compile $fqbn"
-  if "$CLI" compile -b "$fqbn" --warnings all \
-       --build-property "runtime.tools.ctags.path=$CTAGS" "$SKETCH" 2>&1 \
+build() {                       # build <fqbn> <label> [extra-cppflags]
+  local fqbn="$1" label="$2" extra="${3:-}"
+  local args=(compile -b "$fqbn" --warnings all
+              --build-property "runtime.tools.ctags.path=$CTAGS")
+  [ -n "$extra" ] && args+=(--build-property "compiler.cpp.extra_flags=$extra")
+  say "compile $label"
+  if "$CLI" "${args[@]}" "$SKETCH" 2>&1 \
        | grep -v "^Error initializing" \
        | grep -iE "\berror\b|warning:|Sketch uses|Global variables"; then :; fi
-  "$CLI" compile -b "$fqbn" --warnings all \
-    --build-property "runtime.tools.ctags.path=$CTAGS" "$SKETCH" >/dev/null 2>&1 || { echo "FAILED: $fqbn"; fail=1; }
-done
+  "$CLI" "${args[@]}" "$SKETCH" >/dev/null 2>&1 \
+    || { echo "FAILED: $label"; fail=1; }
+}
 
-say "$([ $fail = 0 ] && echo "all three configurations build" || echo "something did not build")"
+# Default first: the PCB's architecture on the module the PCB carries.
+build "esp32:esp32:XIAO_ESP32S3"        "XIAO, SPI + TCA9543A (the default: the PCB)"
+build "esp32:esp32:XIAO_ESP32S3:PSRAM=opi" "XIAO, SPI + TCA9543A, OPI PSRAM"
+build "esp32:esp32:esp32s3"             "S3 Dev Module, SPI + TCA9543A"
+build "esp32:esp32:XIAO_ESP32S3"        "XIAO, I2C x2 (the breadboard)" \
+      "-DRS_IMU_BUS=RS_IMU_I2C"
+build "esp32:esp32:esp32s3"             "S3 Dev Module, I2C x2 (the breadboard)" \
+      "-DRS_IMU_BUS=RS_IMU_I2C"
+# The two haptic topologies are independent of the IMU bus, and RS_HAPTIC_MUX
+# only follows it by default. Both crossings get built so neither branch is
+# one nobody has compiled.
+build "esp32:esp32:esp32s3"             "S3 Dev Module, I2C x2 + TCA9543A" \
+      "-DRS_IMU_BUS=RS_IMU_I2C -DRS_HAPTIC_MUX=1"
+build "esp32:esp32:esp32s3"             "S3 Dev Module, SPI + two haptic buses" \
+      "-DRS_HAPTIC_MUX=0"
+
+say "$([ $fail = 0 ] && echo "all seven configurations build" || echo "something did not build")"
 exit $fail

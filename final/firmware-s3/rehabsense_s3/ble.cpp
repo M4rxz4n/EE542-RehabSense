@@ -407,19 +407,31 @@ void ble_refresh_calib() {
   chCalib->setValue(b, n);
 }
 
-static void hapticTest(uint8_t p) {
+// C_HAPTIC_TEST payload: [pattern] or [pattern, motor].
+//
+// The motor byte is new and optional. An app build that does not send it, or
+// sends 0, gets HM_DEFAULT - each cue on the motor it normally plays on - so
+// the old one-byte form keeps working exactly as it did.
+//
+// The printed reply is what lets the app's developer tab show which motors
+// actually answered, which is not discoverable any other way.
+static void hapticTest(uint8_t p, uint8_t motorByte) {
+  HapticMotor m = (motorByte <= HM_BOTH) ? (HapticMotor)motorByte : HM_DEFAULT;
   switch (p) {
-    case wire::TP_TICK:                 haptic_play(HP_TICK); break;
-    case wire::TP_REP_CLEAN:            haptic_play(HP_REP_OK); break;
-    case wire::TP_REP_FLAGGED:          haptic_play(HP_REP_FLAGGED); break;
-    case wire::TP_SET_COMPLETE:         haptic_play(HP_SET_COMPLETE); break;
-    case wire::TP_REST:                 haptic_play(HP_REST); break;
-    case wire::TP_FAULT:                haptic_play(HP_FAULT); break;
-    case wire::TP_SOFT_CLICK:           haptic_play(HP_TICK); break;
+    case wire::TP_TICK:                 haptic_play(HP_TICK, m); break;
+    case wire::TP_REP_CLEAN:            haptic_play(HP_REP_OK, m); break;
+    case wire::TP_REP_FLAGGED:          haptic_play(HP_REP_FLAGGED, m); break;
+    case wire::TP_SET_COMPLETE:         haptic_play(HP_SET_COMPLETE, m); break;
+    case wire::TP_REST:                 haptic_play(HP_REST, m); break;
+    case wire::TP_FAULT:                haptic_play(HP_FAULT, m); break;
+    case wire::TP_SOFT_CLICK:           haptic_play(HP_TICK, m); break;
     case wire::TP_REP_CLEAN_THEN_SET:   haptic_play_then(HP_REP_OK, HP_SET_COMPLETE, 300); break;
     case wire::TP_REP_FLAGGED_THEN_SET: haptic_play_then(HP_REP_FLAGGED, HP_SET_COMPLETE, 300); break;
     default: break;
   }
+  Log.printf("# HAPTIC pattern=%u motor=%s motors=%u found=%u\n",
+             (unsigned)p, haptic_motor_name(m),
+             (unsigned)HAPTIC_CHANNELS, (unsigned)haptic_motors_found());
 }
 
 // ---- commands ----
@@ -472,7 +484,7 @@ void ble_poll(bool inCal) {
         if (applyConfig(pl, pn) < 0) Log.println("# App: settings rejected (bad length)");
         break;
       case wire::C_GET_CONFIG: ble_send_config(); break;
-      case wire::C_HAPTIC_TEST: if (pn) hapticTest(pl[0]); break;
+      case wire::C_HAPTIC_TEST: if (pn) hapticTest(pl[0], pn >= 2 ? pl[1] : 0); break;
       case wire::C_SET_TIME:
         if (pn >= 8) {
           uint64_t e = 0;

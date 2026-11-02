@@ -183,6 +183,116 @@ CASES: list[tuple[str, str, dict[str, str]]] = [
     # rep.cpp rest countdown prints bare seconds, and "Ready! 10" at ten left.
     ("60", "_restCountdown", {"1": "60"}),
     ("Ready! 10", "_restCountdown", {"1": "10"}),
+
+    # ---- the two motors -------------------------------------------------
+    # ble.cpp: "# HAPTIC pattern=%u motor=%s motors=%u found=%u"
+    (
+        "# HAPTIC pattern=2 motor=forearm motors=2 found=3",
+        "_hapticPlayed",
+        {"1": "2", "2": "forearm", "3": "2", "4": "3"},
+    ),
+    (
+        "# HAPTIC pattern=6 motor=upper-arm motors=2 found=1",
+        "_hapticPlayed",
+        {"1": "6", "2": "upper-arm", "3": "2", "4": "1"},
+    ),
+    # comms.cpp: "# HAPTIC motors=%u found=%u upper=%s forearm=%s"
+    (
+        "# HAPTIC motors=2 found=3 upper=ok forearm=ok",
+        "_hapticReport",
+        {"1": "2", "2": "3", "3": "ok", "4": "ok"},
+    ),
+    (
+        "# HAPTIC motors=2 found=1 upper=ok forearm=MISSING",
+        "_hapticReport",
+        {"1": "2", "2": "1", "3": "ok", "4": "MISSING"},
+    ),
+    # The one-channel build says so rather than reporting a missing motor.
+    (
+        "# HAPTIC motors=1 found=1 upper=ok forearm=not in this build",
+        "_hapticReport",
+        {"1": "1", "2": "1", "3": "ok", "4": "not in this build"},
+    ),
+    # haptic.cpp, one of two answered. Printed without a leading "# ".
+    (
+        "Haptics: only the upper-arm DRV2605L answered. The forearm one is "
+        "not on GPIO17 (SDA) / GPIO18 (SCL) at 0x5A.",
+        "_hapticOneOnly",
+        {"1": "upper-arm"},
+    ),
+    (
+        "Haptics: only the forearm DRV2605L answered. The upper-arm one is "
+        "not on GPIO8 (SDA) / GPIO9 (SCL) at 0x5A.",
+        "_hapticOneOnly",
+        {"1": "forearm"},
+    ),
+    (
+        "Haptics: no DRV2605L answering at 0x5A on either bus. Check 3V3, "
+        "GND, SDA, SCL and EN.",
+        "_hapticNone",
+        {},
+    ),
+
+    # ---- the boot banner's bus map --------------------------------------
+    # rehabsense_s3.ino, the I2C and SPI forms.
+    (
+        "# IMUs: I2C, upper on GPIO8/9, forearm on GPIO17/18, both 0x68",
+        "_imuBus",
+        {"1": "I2C"},
+    ),
+    (
+        "# IMUs: SPI, SCK GPIO7 MISO GPIO8 MOSI GPIO9, CS GPIO1 and GPIO2",
+        "_imuBus",
+        {"1": "SPI"},
+    ),
+    (
+        "# Haptics: 2 x DRV2605L at 0x5A.  EMG: GPIO4.  LED: GPIO48 (WS2812)",
+        "_hapticBus",
+        {"1": "2"},
+    ),
+    # The mux build's banner carries the topology after the count, so the
+    # count still has to be reachable.
+    (
+        "# Haptics: 2 x DRV2605L at 0x5A, behind a TCA9543A switch on bus 0.  "
+        "EMG: GPIO4.  LED: GPIO48 (WS2812)",
+        "_hapticBus",
+        {"1": "2"},
+    ),
+
+    # ---- the PCB's TCA9543A I2C switch ----------------------------------
+    # haptic.cpp muxFind(), both outcomes.
+    (
+        "Haptics: no TCA9543A answering at 0x70-0x73 on GPIO15 (SDA) / "
+        "GPIO16 (SCL). Both motors are behind it, so neither can be reached.",
+        "_hapticMuxNone",
+        {"1": "0x70"},
+    ),
+    (
+        "Haptics: TCA9543A found at 0x72, not the expected 0x70. Build with "
+        "-DHAPTIC_MUX_ADDR=0x72 to skip this scan.",
+        "_hapticMuxFound",
+        {"1": "0x72", "2": "0x70"},
+    ),
+    # The mux build's own wording for a missing driver, which the two existing
+    # patterns still have to claim.
+    (
+        "Haptics: no DRV2605L answering at 0x5A on either switch channel. "
+        "Check 3V3, GND, SDA, SCL and EN.",
+        "_hapticNone",
+        {},
+    ),
+    (
+        "Haptics: only the upper-arm DRV2605L answered. Nothing at 0x5A "
+        "behind channel 1 of the TCA9543A at 0x70.",
+        "_hapticOneOnly",
+        {"1": "upper-arm"},
+    ),
+    (
+        "Haptics: only the forearm DRV2605L answered. Nothing at 0x5A "
+        "behind channel 0 of the TCA9543A at 0x71.",
+        "_hapticOneOnly",
+        {"1": "forearm"},
+    ),
 ]
 
 # Lines that must NOT be claimed by a pattern they could plausibly collide
@@ -202,6 +312,34 @@ NEGATIVE: list[tuple[str, str]] = [
     ("# === EMG signal-quality test ===", "_emgVerdict"),
     ("Set 2 of 3 complete. Well done! Rest for 60 s: let your arm relax.",
      "_restCountdown"),
+    # The two `# HAPTIC` shapes must not claim each other: the played line has
+    # no upper=/forearm= and the report has no pattern=, so a swap would
+    # silently read a pattern id as a channel count.
+    ("# HAPTIC motors=2 found=3 upper=ok forearm=ok", "_hapticPlayed"),
+    ("# HAPTIC pattern=2 motor=forearm motors=2 found=3", "_hapticReport"),
+    # The banner's "# Haptics: 2 x ..." is not a missing-motor warning.
+    ("# Haptics: 2 x DRV2605L at 0x5A.  EMG: GPIO4.  LED: GPIO48 (WS2812)",
+     "_hapticOneOnly"),
+    ("# Haptics: 2 x DRV2605L at 0x5A.  EMG: GPIO4.  LED: GPIO48 (WS2812)",
+     "_hapticNone"),
+    # ... and a missing-motor warning is not the banner.
+    ("Haptics: no DRV2605L answering at 0x5A on either bus.", "_hapticBus"),
+    # A missing switch is not a missing driver: both motors sit behind it, so
+    # conflating the two would send a bench hunting the wrong part.
+    ("Haptics: no TCA9543A answering at 0x70-0x73 on GPIO15 (SDA) / "
+     "GPIO16 (SCL). Both motors are behind it, so neither can be reached.",
+     "_hapticNone"),
+    ("Haptics: no DRV2605L answering at 0x5A on either switch channel.",
+     "_hapticMuxNone"),
+    # ... and a switch found at an unexpected address is not a failure.
+    ("Haptics: TCA9543A found at 0x72, not the expected 0x70.",
+     "_hapticMuxNone"),
+    # _imuBus is anchored on "IMUs:" for a reason: widened to any "word:" it
+    # would claim the haptics banner and report the wrong sensor bus.
+    ("# Haptics: 2 x DRV2605L at 0x5A.  EMG: GPIO4.  LED: GPIO48 (WS2812)",
+     "_imuBus"),
+    ("# LIVE calibrated=1 set=2/3 reps=7 partials=1 resting=0 done=0 "
+     "paused=0 pace=1", "_imuBus"),
 ]
 
 

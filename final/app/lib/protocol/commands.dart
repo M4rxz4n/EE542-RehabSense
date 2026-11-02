@@ -51,8 +51,20 @@ abstract final class Commands {
   static Uint8List setConfigTags(List<Uint8List> blocks) =>
       setConfig(concatTlv(blocks));
 
-  static Uint8List hapticTest(HapticPattern pattern) =>
-      Uint8List.fromList([Cmd.hapticTest, pattern.wire & 0xFF]);
+  /// The sleeve carries two ERM motors, one on the upper arm and one on the
+  /// forearm, each behind its own DRV2605L.
+  ///
+  /// The motor byte is appended only when it is not [HapticMotor.asUsual],
+  /// because a one-byte payload is what every firmware before the two-motor
+  /// build understands. Sending the shorter form where it means the same thing
+  /// keeps this working against an older sleeve.
+  static Uint8List hapticTest(HapticPattern pattern,
+          {HapticMotor motor = HapticMotor.asUsual}) =>
+      Uint8List.fromList([
+        Cmd.hapticTest,
+        pattern.wire & 0xFF,
+        if (motor != HapticMotor.asUsual) motor.wire,
+      ]);
 
   /// The device records the offset and reports it, but never adjusts its own
   /// clock. Send this once on connection so timestamps can be related to wall
@@ -108,7 +120,14 @@ abstract final class Commands {
   /// sleeve's own list is longer (it includes the guided-pace beats and the
   /// rest-countdown cues), so the Developer tab drives it this way to reach
   /// all of them.
-  static Uint8List hapticByIndex(int n) => text('h$n');
+  static Uint8List hapticByIndex(int n,
+          {HapticMotor motor = HapticMotor.asUsual}) =>
+      text('h$n${motor.suffix}');
+
+  /// `hm` — which DRV2605Ls answered, and where each cue plays. The reply is a
+  /// `# HAPTIC` line on the Messages characteristic; nothing else reports a
+  /// motor that quietly failed to come up.
+  static Uint8List hapticMotors() => text('hm');
 
   /// `hx` then `h?` — play a random pattern, then reveal which it was. The
   /// point is to check a pattern is distinguishable *without* knowing which

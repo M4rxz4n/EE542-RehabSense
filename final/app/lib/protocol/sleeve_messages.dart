@@ -128,6 +128,16 @@ enum SleeveMessageKind {
   /// Set and session boundaries, and the rest countdown.
   sessionFlow,
 
+  /// `# HAPTIC …` — which of the two DRV2605Ls answered, and which motor a
+  /// cue was just played on. The only report of a motor that failed to come
+  /// up: a sleeve that quietly lost one otherwise just feels wrong.
+  haptics,
+
+  /// `# IMUs: …` and `# Haptics: …` — the boot banner's bus map. Worth
+  /// catching because "flashed for the wrong wiring" is the first thing to
+  /// rule out on a bench, and these lines settle it.
+  busMap,
+
   /// Anything else, kept verbatim.
   other,
 }
@@ -263,6 +273,35 @@ final _comfortableBend = RegExp(
 final _stepDone = RegExp(r'^Step\s+(\d+)\s+done');
 final _restCountdown = RegExp(r'^(?:Ready!\s*)?(\d+)$');
 
+// ---- the two-motor haptic reports ---------------------------------------
+//
+// Two shapes, from two places. `hm` asks what came up; a haptic test reports
+// where it just played. `found` is a bitmask: bit 0 upper arm, bit 1 forearm.
+final _hapticPlayed = RegExp(
+    r'^#\s*HAPTIC\s+pattern=(\d+)\s+motor=(\S+)\s+motors=(\d+)\s+found=(\d+)');
+final _hapticReport = RegExp(
+    r'^#\s*HAPTIC\s+motors=(\d+)\s+found=(\d+)\s+upper=(\S+)\s+forearm=(.*)$');
+
+// One DRV2605L answered and the other did not. The sleeve keeps running on
+// the one it has, so this is a warning rather than a fault, and it is the
+// reason a cue can feel like it is in the wrong place.
+final _hapticOneOnly = RegExp(
+    r'^#?\s*Haptics:\s*only the (\S+) DRV2605L answered');
+final _hapticNone = RegExp(r'^#?\s*Haptics:\s*no DRV2605L answering');
+
+// The PCB puts both motors behind a TCA9543A I2C switch, so a missing switch
+// means no haptics at all - a different fault from a missing driver, and
+// worth saying so rather than reporting two dead motors.
+final _hapticMuxNone =
+    RegExp(r'^#?\s*Haptics:\s*no TCA9543A answering at (0x[0-9A-Fa-f]+)');
+final _hapticMuxFound = RegExp(
+    r'^#?\s*Haptics:\s*TCA9543A found at (0x[0-9A-Fa-f]+), '
+    r'not the expected (0x[0-9A-Fa-f]+)');
+
+// ---- the boot banner's bus map ------------------------------------------
+final _imuBus = RegExp(r'^#\s*IMUs:\s*(I2C|SPI)\b(.*)$');
+final _hapticBus = RegExp(r'^#\s*Haptics:\s*(\d+)\s*x\s*DRV2605L');
+
 double _d(String? s) => s == null ? 0 : (double.tryParse(s) ?? 0);
 
 /// Classify one line.
@@ -310,6 +349,87 @@ SleeveMessage parseSleeveLine(String line) {
       'sets': _d(params.group(8)),
       'repsPerSet': _d(params.group(9)),
       'restS': _d(params.group(10)),
+    });
+  }
+
+  // ---- the two motors, and the bus map --------------------------------
+  //
+  // Tested here, early, because every shape below is looser and `# Haptics:`
+  // would otherwise be swallowed by one of them.
+  final played = _hapticPlayed.firstMatch(s);
+  if (played != null) {
+    final found = int.tryParse(played.group(4) ?? '') ?? 0;
+    return SleeveMessage(s, SleeveMessageKind.haptics, fields: {
+      'pattern': _d(played.group(1)),
+      'motor': played.group(2) ?? '',
+      'channels': _d(played.group(3)),
+      'found': found.toDouble(),
+      'upperOk': (found & 0x1) != 0,
+      'forearmOk': (found & 0x2) != 0,
+    });
+  }
+
+  final hapReport = _hapticReport.firstMatch(s);
+  if (hapReport != null) {
+    final found = int.tryParse(hapReport.group(2) ?? '') ?? 0;
+    return SleeveMessage(s, SleeveMessageKind.haptics, fields: {
+      'channels': _d(hapReport.group(1)),
+      'found': found.toDouble(),
+      'upperOk': (hapReport.group(3) ?? '') == 'ok',
+      'forearmOk': (hapReport.group(4) ?? '').trim() == 'ok',
+    });
+  }
+
+  final oneOnly = _hapticOneOnly.firstMatch(s);
+  if (oneOnly != null) {
+    final which = oneOnly.group(1) ?? '';
+    return SleeveMessage(s, SleeveMessageKind.haptics, fields: {
+      'channels': 2.0,
+      'upperOk': which.startsWith('upper'),
+      'forearmOk': which == 'forearm',
+      'degraded': true,
+    });
+  }
+
+  final muxNone = _hapticMuxNone.firstMatch(s);
+  if (muxNone != null) {
+    return SleeveMessage(s, SleeveMessageKind.haptics, fields: {
+      'upperOk': false,
+      'forearmOk': false,
+      'degraded': true,
+      'muxMissing': true,
+      'muxScanFrom': muxNone.group(1) ?? '',
+    });
+  }
+
+  final muxFound = _hapticMuxFound.firstMatch(s);
+  if (muxFound != null) {
+    return SleeveMessage(s, SleeveMessageKind.haptics, fields: {
+      'muxAddr': muxFound.group(1) ?? '',
+      'muxExpected': muxFound.group(2) ?? '',
+    });
+  }
+
+  if (_hapticNone.hasMatch(s)) {
+    return SleeveMessage(s, SleeveMessageKind.haptics, fields: {
+      'upperOk': false,
+      'forearmOk': false,
+      'degraded': true,
+    });
+  }
+
+  final imuBus = _imuBus.firstMatch(s);
+  if (imuBus != null) {
+    return SleeveMessage(s, SleeveMessageKind.busMap, fields: {
+      'bus': imuBus.group(1) ?? '',
+      'detail': (imuBus.group(2) ?? '').trim(),
+    });
+  }
+
+  final hapBus = _hapticBus.firstMatch(s);
+  if (hapBus != null) {
+    return SleeveMessage(s, SleeveMessageKind.busMap, fields: {
+      'channels': _d(hapBus.group(1)),
     });
   }
 

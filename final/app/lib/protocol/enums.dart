@@ -202,12 +202,16 @@ enum CalibPhase {
   }
 }
 
-/// `patterns.h` — one ERM, seven messages, distinguished by RHYTHM.
+/// `patterns.h` — seven messages, distinguished by RHYTHM.
 ///
 /// An ERM's vibration frequency is coupled to its amplitude, so "stronger"
 /// also means "faster" and cannot carry independent meaning. Every cue plays
 /// at one consistent amplitude. The patient view mirrors these visually, so
 /// the rhythm descriptions are the spec for the animation too.
+///
+/// The sleeve now has two ERMs rather than one, but rhythm still carries the
+/// meaning: see [HapticMotor] for where each cue is felt, which is a separate
+/// question from what it says.
 enum HapticPattern {
   none(0, 'None', ''),
   tick(1, 'Tick', '40 ms — button acknowledged'),
@@ -224,6 +228,56 @@ enum HapticPattern {
   final int wire;
   final String label;
   final String rhythm;
+}
+
+/// Which of the sleeve's two ERM motors a cue is felt on.
+///
+/// [asUsual] is zero deliberately: it is both "the motor this cue normally
+/// plays on" and what a firmware build predating the second motor sees in an
+/// absent byte. So the default never changes behaviour anywhere, and
+/// [Commands.hapticTest] omits the byte entirely for it.
+///
+/// Most cues play on both motors, which is what the single-motor sleeve felt
+/// like and what the team tuned against. The guided-pace beat is the
+/// exception — up, hold and down play on the forearm alone, the part of the
+/// arm the beat is asking to move.
+enum HapticMotor {
+  asUsual(0, 'As usual', ''),
+  upper(1, 'Upper arm', 'u'),
+  forearm(2, 'Forearm', 'f'),
+  both(3, 'Both', 'b');
+
+  const HapticMotor(this.wire, this.label, this.suffix);
+  final int wire;
+  final String label;
+
+  /// What the sleeve's own console command takes: `h1f` plays the rep click on
+  /// the forearm. Empty for [asUsual], so `h1` stays exactly `h1`.
+  final String suffix;
+
+  static HapticMotor? fromWire(int w) {
+    for (final m in values) {
+      if (m.wire == w) return m;
+    }
+    return null;
+  }
+
+  /// Parses the sleeve's own word for a motor, as the `# HAPTIC` line prints
+  /// it: `upper-arm`, `forearm`, `both` or `default`.
+  static HapticMotor? fromSleeveName(String s) {
+    switch (s.trim().toLowerCase()) {
+      case 'upper-arm':
+      case 'upper':
+        return HapticMotor.upper;
+      case 'forearm':
+        return HapticMotor.forearm;
+      case 'both':
+        return HapticMotor.both;
+      case 'default':
+        return HapticMotor.asUsual;
+    }
+    return null;
+  }
 }
 
 enum Fault {

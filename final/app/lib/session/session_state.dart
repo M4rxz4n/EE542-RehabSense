@@ -353,6 +353,39 @@ class SessionState extends ChangeNotifier {
   final List<SleeveMessage> emgTestLines = [];
   bool emgTestRunning = false;
 
+  // ── What the sleeve says about its own hardware ───────────────────────
+  //
+  // All four start null, meaning "has not said". A sleeve that has not been
+  // asked is not a sleeve with a missing motor, and the developer tab has to
+  // be able to tell those apart rather than reporting a fault on connect.
+  // Populated by the `hm` command, by any haptic test, and by the boot banner.
+
+  /// How many haptic channels the firmware was built for: 2 on both the
+  /// breadboard and the PCB, 1 only on a XIAO wired for SPI.
+  int? hapticChannels;
+
+  /// Whether each DRV2605L answered. The sleeve runs on one motor if it has
+  /// to, and plays every cue there, so false is a warning and not a fault.
+  bool? hapticUpperOk;
+  bool? hapticForearmOk;
+
+  /// The last `# HAPTIC` line verbatim, for the event log.
+  String? hapticReport;
+
+  /// On the PCB both motors sit behind a TCA9543A I2C switch. If the switch
+  /// itself is missing, neither motor can answer — which looks identical to
+  /// two dead drivers and is a different part to go and check, so it is
+  /// tracked separately rather than inferred.
+  bool? hapticMuxMissing;
+
+  /// The switch's address once found, and what the build expected. Only set
+  /// when the two differ, which is the only time anyone needs to know.
+  String? hapticMuxAddr;
+
+  /// `I2C` or `SPI` — which wiring this firmware was built for. The quickest
+  /// way to catch a sleeve flashed for the other one.
+  String? imuBus;
+
   /// The calibration prompt currently in front of the patient, if any.
   String? calibrationPrompt;
 
@@ -705,7 +738,13 @@ class SessionState extends ChangeNotifier {
         // The rating prompt belongs here, not at session end: asking after
         // every set tracks how pain and effort move through a session, and
         // asking once at the end does not.
-        awaitingRatingForSet = currentSetNumber;
+        //
+        // But NOT when the set was stopped from the app. The firmware sends
+        // the same event either way, with no payload on a stop — and someone
+        // who hit Stop to reseat an electrode is interrupted by a pain
+        // questionnaire they have no answer for, which is how a rating scale
+        // gets a reputation for being in the way.
+        if (!set.wasStopped) awaitingRatingForSet = currentSetNumber;
 
       case RehabEvent.fatigueWarn:
         pendingCue = HapticPattern.rest;
@@ -894,6 +933,35 @@ class SessionState extends ChangeNotifier {
         // The adaptive target changed. The `# PARAMS` line that follows
         // carries the new value, so nothing to do but let it through.
         break;
+
+      case SleeveMessageKind.haptics:
+        // Which of the two DRV2605Ls answered. Nothing else reports this, and
+        // a sleeve running on one motor feels like a sleeve whose patterns
+        // have gone wrong, so it is worth keeping where the bench tools can
+        // see it. Fields are absent on some of the four shapes, so each is
+        // only taken when the line actually carried it.
+        final ch = m.fields['channels'];
+        if (ch is double) hapticChannels = ch.round();
+        final up = m.fields['upperOk'];
+        if (up is bool) hapticUpperOk = up;
+        final fore = m.fields['forearmOk'];
+        if (fore is bool) hapticForearmOk = fore;
+        final muxGone = m.fields['muxMissing'];
+        if (muxGone is bool) hapticMuxMissing = muxGone;
+        final muxAt = m.fields['muxAddr'];
+        if (muxAt is String && muxAt.isNotEmpty) {
+          hapticMuxAddr = muxAt;
+          hapticMuxMissing = false;        // it answered, just not where expected
+        }
+        hapticReport = m.text;
+
+      case SleeveMessageKind.busMap:
+        // The boot banner's wiring. "Flashed for the wrong wiring" is the
+        // first thing to rule out on a bench, and this settles it.
+        final bus = m.fields['bus'];
+        if (bus is String && bus.isNotEmpty) imuBus = bus;
+        final hc = m.fields['channels'];
+        if (hc is double) hapticChannels = hc.round();
 
       case SleeveMessageKind.formFault:
       case SleeveMessageKind.paceVerdict:

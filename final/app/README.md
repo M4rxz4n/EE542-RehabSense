@@ -53,10 +53,16 @@ mid-session.
 
 ### What is on the Developer screen
 
-The sleeve's own command line, the twelve haptic patterns with a blind test,
-the EMG signal test, every printed line the sleeve sent, the binary event log,
-the adaptive-target controls, link diagnostics, the clinician bridge and the
-Wi-Fi fetch.
+The sleeve's own command line, the twelve haptic patterns with a blind test and
+a per-motor selector, the EMG signal test, every printed line the sleeve sent,
+the binary event log, the adaptive-target controls, link diagnostics, the
+clinician bridge and the Wi-Fi fetch.
+
+The sleeve has two ERMs, upper arm and forearm. The haptic tester defaults to
+playing each cue wherever it normally plays, and **Check motors** asks the
+sleeve which of its two DRV2605Ls actually answered — nothing else reports a
+motor that quietly failed to come up, and a sleeve running on one motor keeps
+working while feeling subtly wrong.
 
 ---
 

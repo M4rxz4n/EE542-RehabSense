@@ -573,7 +573,17 @@ class RehabDevice {
 
   Future<bool> requestRecalibration() => _write(Commands.requestRecalibration());
 
-  Future<bool> testHaptic(HapticPattern p) => _write(Commands.hapticTest(p));
+  /// Fire one cue. [motor] defaults to leaving it wherever that cue normally
+  /// plays, which also keeps the payload one byte long and so works against a
+  /// sleeve built before the second motor existed.
+  Future<bool> testHaptic(HapticPattern p,
+          {HapticMotor motor = HapticMotor.asUsual}) =>
+      _write(Commands.hapticTest(p, motor: motor));
+
+  /// Ask which of the two DRV2605Ls answered. The reply arrives as a
+  /// `# HAPTIC` line on the Messages characteristic and lands in
+  /// `SessionState.hapticUpperOk` / `hapticForearmOk`.
+  Future<bool> requestHapticMotors() => _write(Commands.hapticMotors());
 
   /// Run a Serial Monitor command on the sleeve. See [Cmd.text].
   ///

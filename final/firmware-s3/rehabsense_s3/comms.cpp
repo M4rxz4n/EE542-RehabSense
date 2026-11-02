@@ -72,6 +72,8 @@ void comms_help() {
     "#   h9  ready, 10 s left (double)      h10 rep start (long)\n"
     "#   h11 pace: hold (steady buzz)       h12 pace: down (double tick)\n"
     "#   ha  play all, 1.5 s apart          h0  stop\n"
+    "#   hm  which motors answered, and where each cue plays\n"
+    "#   Add u, f or b to pick a motor: h1f = rep click on the forearm only\n"
     "#   hx  blind test: play a random pattern   h?  reveal which one it was");
 }
 
@@ -80,13 +82,37 @@ void comms_begin() { randomSeed(esp_random()); }
 static void playAll() {
   bool was = plotOn; plotOn = false;
   for (uint8_t p = HP_REP_OK; p < HP_COUNT; p++) {
-    Log.printf("# h%d: %s (%lu ms)\n", p, haptic_name((HapticPattern)p),
-                  (unsigned long)haptic_duration_ms((HapticPattern)p));
-    haptic_play((HapticPattern)p);
-    haptic_wait(haptic_duration_ms((HapticPattern)p) + 1500);
+    HapticPattern hp = (HapticPattern)p;
+    Log.printf("# h%d: %s (%lu ms, %s)\n", p, haptic_name(hp),
+               (unsigned long)haptic_duration_ms(hp), haptic_motor_name(haptic_home(hp)));
+    haptic_play(hp);
+    haptic_wait(haptic_duration_ms(hp) + 1500);
   }
   plotOn = was;
   sampler_reset();
+}
+
+// Which motors answered, and where each cue plays. Worth one command of its
+// own: a sleeve that silently lost a motor otherwise feels like a sleeve whose
+// patterns have gone wrong.
+static void hapticReport() {
+  uint8_t found = haptic_motors_found();
+  Log.printf("# HAPTIC motors=%u found=%u upper=%s forearm=%s\n",
+             (unsigned)HAPTIC_CHANNELS, (unsigned)found,
+             (found & 0x1) ? "ok" : "MISSING",
+             HAPTIC_CHANNELS > 1 ? ((found & 0x2) ? "ok" : "MISSING") : "not in this build");
+  Log.println("# Add u (upper), f (forearm) or b (both) to a pattern: h1f plays the rep click on the forearm.");
+}
+
+// Trailing u / f / b on a haptic command. Nothing means "wherever this cue
+// normally plays".
+static HapticMotor motorSuffix(char c) {
+  switch (c) {
+    case 'u': case 'U': return HM_UPPER;
+    case 'f': case 'F': return HM_FORE;
+    case 'b': case 'B': return HM_BOTH;
+    default:            return HM_DEFAULT;
+  }
 }
 
 static void run(const char *cmd) {
@@ -113,15 +139,21 @@ static void run(const char *cmd) {
   if (prog_command(cmd))      return;                       // [AT3] [AT4] t?, tl, tr, t<deg>
   if (!strcmp(cmd, "h0"))     { haptic_stop(); Log.println("# Haptics stopped"); return; }
   if (!strcmp(cmd, "ha"))     { playAll(); return; }
+  if (!strcmp(cmd, "hm"))     { hapticReport(); return; }
   if (!strcmp(cmd, "hx"))     { mystery = (HapticPattern)random(HP_REP_OK, HP_COUNT);
                                 haptic_play(mystery); Log.println("# Played a pattern. Guess, then type h?"); return; }
   if (!strcmp(cmd, "h?"))     { Log.printf("# It was h%d: %s\n", mystery, haptic_name(mystery)); return; }
   if (cmd[0] == 'h' && isdigit(cmd[1])) {
     int n = atoi(cmd + 1);
-    if (n >= 1 && n < HP_COUNT) {
+    const char *s = cmd + 1;
+    while (isdigit(*s)) s++;                       // step past the number to any u/f/b
+    HapticMotor m = motorSuffix(*s);
+    if (n >= 1 && n < HP_COUNT && (*s == '\0' || m != HM_DEFAULT)) {
       HapticPattern p = (HapticPattern)n;
-      haptic_play(p);
-      Log.printf("# h%d: %s (%lu ms)\n", n, haptic_name(p), (unsigned long)haptic_duration_ms(p));
+      haptic_play(p, m);
+      Log.printf("# h%d: %s (%lu ms, %s)\n", n, haptic_name(p),
+                 (unsigned long)haptic_duration_ms(p),
+                 haptic_motor_name(m == HM_DEFAULT ? haptic_home(p) : m));
       return;
     }
   }

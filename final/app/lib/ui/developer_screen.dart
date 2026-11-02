@@ -31,6 +31,7 @@ import 'package:flutter/services.dart';
 
 import '../bridge/clinician_server.dart';
 import '../protocol/config_tlv.dart';
+import '../protocol/enums.dart';
 import '../protocol/sleeve_messages.dart';
 import '../session/session_state.dart';
 import '../session/session_store.dart';
@@ -81,6 +82,11 @@ class _DeveloperScreenState extends State<DeveloperScreen> {
   final TextEditingController _command = TextEditingController();
   String? _message;
   int? _blindPattern;
+
+  /// Which motor the haptic tester drives. Defaults to leaving each cue where
+  /// it normally plays, so opening the tab changes nothing about how the
+  /// sleeve behaves.
+  HapticMotor _motor = HapticMotor.asUsual;
 
   /// Which kinds of printed line the log shows. All of them by default: the
   /// point of a log is that nothing is hidden until you ask.
@@ -158,8 +164,19 @@ class _DeveloperScreenState extends State<DeveloperScreen> {
               _HapticCard(
                 enabled: live,
                 blind: _blindPattern,
-                onPlay: (n) => _send('h$n',
-                    note: 'Playing h$n: ${sleeveHaptics[n - 1].$2}.'),
+                motor: _motor,
+                onMotor: (m) => setState(() => _motor = m),
+                channels: widget.state.hapticChannels,
+                upperOk: widget.state.hapticUpperOk,
+                forearmOk: widget.state.hapticForearmOk,
+                muxMissing: widget.state.hapticMuxMissing,
+                onPlay: (n) {
+                  final cmd = 'h$n${_motor.suffix}';
+                  return _send(cmd,
+                      note: 'Playing $cmd: ${sleeveHaptics[n - 1].$2}'
+                          '${_motor == HapticMotor.asUsual ? '' : ' on the '
+                              '${_motor.label.toLowerCase()} motor'}.');
+                },
                 onBlind: () async {
                   await _send('hx',
                       note: 'Played a random pattern. Guess, then reveal.');
@@ -171,11 +188,14 @@ class _DeveloperScreenState extends State<DeveloperScreen> {
                   setState(() => _blindPattern = null);
                 },
                 onStop: () => _send('h0', note: 'Haptics stopped.'),
+                onCheckMotors: () => _send('hm',
+                    note: 'Asked which motors answered.'),
                 onAll: () async {
+                  final suffix = _motor.suffix;
                   for (final (n, name, _) in sleeveHaptics) {
                     if (!mounted) return;
-                    setState(() => _message = 'h$n: $name');
-                    await widget.state.device.sendText('h$n');
+                    setState(() => _message = 'h$n$suffix: $name');
+                    await widget.state.device.sendText('h$n$suffix');
                     await Future<void>.delayed(
                         const Duration(milliseconds: 1600));
                   }
@@ -512,34 +532,119 @@ class _HapticCard extends StatelessWidget {
   const _HapticCard({
     required this.enabled,
     required this.blind,
+    required this.motor,
+    required this.onMotor,
+    required this.channels,
+    required this.upperOk,
+    required this.forearmOk,
+    required this.muxMissing,
     required this.onPlay,
     required this.onBlind,
     required this.onReveal,
     required this.onStop,
     required this.onAll,
+    required this.onCheckMotors,
   });
 
   final bool enabled;
   final int? blind;
+  final HapticMotor motor;
+  final ValueChanged<HapticMotor> onMotor;
+  final int? channels;
+  final bool? upperOk;
+  final bool? forearmOk;
+
+  /// Only meaningful on the PCB build, where both motors are behind a
+  /// TCA9543A I2C switch. Null means the sleeve has not said.
+  final bool? muxMissing;
   final ValueChanged<int> onPlay;
   final VoidCallback onBlind;
   final VoidCallback onReveal;
   final VoidCallback onStop;
   final VoidCallback onAll;
+  final VoidCallback onCheckMotors;
+
+  /// Null until the sleeve has been asked, so an unasked sleeve does not read
+  /// as a broken one.
+  (String, Color)? get _motorStatus {
+    if (muxMissing == true) {
+      return (
+        'The TCA9543A I2C switch did not answer, and both motors are behind '
+        'it — so this is the switch to check, not the drivers. The console '
+        'line names the addresses that were tried.',
+        RehabColors.bad,
+      );
+    }
+    if (upperOk == null && forearmOk == null) return null;
+    final u = upperOk ?? false;
+    final f = forearmOk ?? false;
+    if (channels == 1) {
+      return u
+          ? ('One channel in this build, and its motor answered.',
+              RehabColors.good)
+          : ('One channel in this build, and no motor answered.',
+              RehabColors.bad);
+    }
+    if (u && f) return ('Both motors answered.', RehabColors.good);
+    if (!u && !f) {
+      return ('Neither motor answered — check 3V3, GND, SDA, SCL and EN.',
+          RehabColors.bad);
+    }
+    final missing = u ? 'forearm' : 'upper-arm';
+    final working = u ? 'upper-arm' : 'forearm';
+    return (
+      'Only the $working motor answered. Every cue is playing there, so '
+      'nothing will feel like it is in the right place until the $missing '
+      'one is fixed.',
+      RehabColors.warn,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final status = _motorStatus;
     return _Card(
       title: 'Haptic patterns',
       subtitle: 'The sleeve\'s twelve patterns, by its own numbering — which '
           'reaches the guided-pace beats and countdown cues that the frozen '
-          'team pattern ids do not cover. One motor, so every cue is told '
-          'apart by rhythm, never by strength: an ERM\'s frequency is coupled '
-          'to its amplitude, so "stronger" also means "faster" and cannot '
-          'carry a second meaning.',
+          'team pattern ids do not cover. Two ERMs, one on the upper arm and '
+          'one on the forearm, but cues are still told apart by rhythm and '
+          'never by strength: an ERM\'s frequency is coupled to its '
+          'amplitude, so "stronger" also means "faster" and cannot carry a '
+          'second meaning. What the second motor adds is where a cue is felt.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Text('PLAY ON', style: RehabText.label),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final m in HapticMotor.values)
+                ChoiceChip(
+                  label: Text(m.label),
+                  selected: motor == m,
+                  onSelected: enabled ? (_) => onMotor(m) : null,
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            motor == HapticMotor.asUsual
+                ? 'Each cue on the motor it normally uses: everything on both, '
+                    'except the guided-pace beat, which plays on the forearm.'
+                : 'Every cue forced onto the ${motor.label.toLowerCase()} '
+                    'motor, whatever it normally uses.',
+            style: RehabText.body.copyWith(fontSize: 11.5),
+          ),
+          if (status != null) ...[
+            const SizedBox(height: 8),
+            Text(status.$1,
+                style: RehabText.body
+                    .copyWith(fontSize: 12, color: status.$2)),
+          ],
+          const SizedBox(height: 12),
           for (final (n, name, rhythm) in sleeveHaptics)
             InkWell(
               onTap: enabled ? () => onPlay(n) : null,
@@ -601,6 +706,11 @@ class _HapticCard extends StatelessWidget {
               OutlinedButton(
                 onPressed: enabled ? onStop : null,
                 child: const Text('Stop'),
+              ),
+              OutlinedButton.icon(
+                onPressed: enabled ? onCheckMotors : null,
+                icon: const Icon(Icons.hearing, size: 17),
+                label: const Text('Check motors'),
               ),
             ],
           ),

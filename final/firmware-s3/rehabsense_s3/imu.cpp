@@ -1,10 +1,13 @@
 #include <Arduino.h>
-#include <SPI.h>
+#include "pins.h"          // first: RS_IMU_BUS decides which bus library is needed
+#include <Wire.h>
+#if RS_IMU_BUS == RS_IMU_SPI
+  #include <SPI.h>
+#endif
 #include "rs_log.h"
 #include "SparkFun_BMI270_Arduino_Library.h"
 #include "imu.h"
 #include "params.h"
-#include "pins.h"
 
 static BMI270 imuUpperDev;
 static BMI270 imuForeDev;
@@ -26,6 +29,72 @@ float imuRawU[6] = {0}, imuRawF[6] = {0};   // accel g, gyro deg/s (Bluetooth IM
 
 static float prevAngle = 0;
 
+// =========================================================================
+// Bringing up two BMI270s. Two wirings, one contract: when imu_begin()
+// returns, both sensors are started and imu_update() can read them.
+//
+// Both paths are built the same way and for the same reason. Starting a BMI270
+// is not a register read - it uploads an 8 KB configuration image, and that
+// upload fails on a long or loose breadboard lead even when the chip answers
+// its chip-ID check perfectly. So neither path gives up: each retries forever,
+// steps the clock down before blaming the wiring, and prints a line that names
+// the pin, the speed and the failure mode. A sleeve that will not start should
+// say why on the console, not just sit there dark.
+// =========================================================================
+
+#if RS_IMU_BUS == RS_IMU_I2C
+
+// One BMI270 and one DRV2605L per bus, because both BMI270 breakouts are
+// strapped to 0x68 and the DRV2605L's 0x5A is not strappable at all.
+//
+// 0x69 is tried as well: that is what a BMI270 answers to with its ADR jumper
+// closed, and a board that arrived that way should come up rather than be
+// reported dead.
+static void startImu(BMI270 &dev, TwoWire &bus, const char *name, int sda, int scl) {
+  uint32_t hz = I2C_HZ;
+  for (int round = 1; ; round++) {
+    bool anyAck = false;
+    const uint8_t addrs[2] = {IMU_ADDR_PRIMARY, IMU_ADDR_FALLBACK};
+    for (uint8_t addr : addrs) {
+      bus.beginTransmission(addr);
+      if (bus.endTransmission() != 0) continue;        // nothing answers here
+      anyAck = true;
+      int8_t rc = dev.beginI2C(addr, bus);
+      if (rc == BMI2_OK) {
+        if (addr != IMU_ADDR_PRIMARY || hz != I2C_HZ)
+          Log.printf("%s BMI270 started at 0x%02X, I2C %lu kHz on GPIO%d/%d.\n",
+                     name, addr, (unsigned long)(hz / 1000), sda, scl);
+        return;
+      }
+      Log.printf("%s BMI270 answers at 0x%02X on GPIO%d/%d but didn't start (error %d: %s).\n",
+                 name, addr, sda, scl, rc,
+                 rc == BMI2_E_COM_FAIL      ? "communication failed part-way" :
+                 rc == BMI2_E_DEV_NOT_FOUND ? "chip ID wrong: not a BMI270, or a garbled read" :
+                 rc == BMI2_E_NULL_PTR      ? "driver set up wrong (a bug, not your wiring)" :
+                                              "setup failed, often the 8 KB config upload on a long or loose wire");
+    }
+    if (!anyAck)
+      Log.printf("%s BMI270: nothing answers at 0x%02X or 0x%02X on GPIO%d (SDA) / GPIO%d (SCL).\n"
+                 "  Check 3V3, GND, SDA, SCL, and that this bus has its 4.7k pull-ups to 3V3.\n",
+                 name, IMU_ADDR_PRIMARY, IMU_ADDR_FALLBACK, sda, scl);
+    hz = (hz == I2C_HZ) ? I2C_HZ_SLOW : I2C_HZ;         // alternate 400 and 100 kHz
+    bus.setClock(hz);
+    if (round % 4 == 0)
+      Log.println("Still trying. If the DRV2605L on this same bus started, the bus wiring is fine "
+                  "and it is this sensor's power or its SDA/SCL stub. Unplug USB for 5 s, then retry.");
+    delay(1000);
+  }
+}
+
+void imu_begin() {
+  // The buses themselves are brought up in the sketch, before this, because the
+  // haptic drivers share them.
+  startImu(imuUpperDev, Wire,  "Upper-arm", PIN_I2C0_SDA, PIN_I2C0_SCL);
+  startImu(imuForeDev,  Wire1, "Forearm",   PIN_I2C1_SDA, PIN_I2C1_SCL);
+}
+
+#else   // RS_IMU_BUS == RS_IMU_SPI, the custom PCB
+
 // The BMI270 powers up listening on I2C and only commits to SPI on the first
 // rising edge of its chip select. Bosch's driver does a throwaway read to
 // provoke that, but it does it *inside* bmi2_init, so a sensor that has not yet
@@ -42,11 +111,6 @@ static void nudgeIntoSpiMode(int csPin) {
   delay(2);
 }
 
-// Starting a BMI270 is not just a register read: it also uploads an 8 KB
-// configuration image, which fails on a long or loose lead even when the chip
-// answers perfectly. So: say exactly what happened, and step the clock down
-// before blaming the wiring, because a marginal lead usually works at 1 MHz
-// and not at 8.
 static void startImu(BMI270 &dev, int csPin, const char *name, const char *pinLabel) {
   const uint32_t rates[3] = {SPI_HZ_FAST, SPI_HZ_SLOW, SPI_HZ_LAST};
   for (int round = 1; ; round++) {
@@ -89,9 +153,11 @@ void imu_begin() {
   // own chip select.
   SPI.begin(PIN_SPI_SCK, PIN_SPI_MISO, PIN_SPI_MOSI, -1);
 
-  startImu(imuUpperDev, PIN_IMU_UPPER_CS, "Upper-arm", "GPIO1 (D0)");
-  startImu(imuForeDev, PIN_IMU_FORE_CS, "Forearm", "GPIO2 (D1)");
+  startImu(imuUpperDev, PIN_IMU_UPPER_CS, "Upper-arm", "CS_IMU1");
+  startImu(imuForeDev, PIN_IMU_FORE_CS, "Forearm", "CS_IMU2");
 }
+
+#endif  // RS_IMU_BUS
 
 Quat imu_relative() { return qMul(qConj(qUpper), qFore); }
 

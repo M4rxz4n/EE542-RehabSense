@@ -10,17 +10,57 @@
 
   What changed from v5, and nothing else did
   ------------------------------------------
-    pins.h      new map for the S3 / XIAO (see that file for the reasoning)
-    imu.cpp     both BMI270s moved from two I2C buses to one SPI bus with a
-                chip select each, as the PRD and the ESP-IDF firmware specify
+    pins.h      new map for the S3, selecting board (DevKitC-1 or XIAO) and
+                IMU bus (two I2C buses or one SPI bus) at compile time
+    imu.cpp     both wirings behind one imu_begin()/imu_update() contract
+    haptic.cpp  two DRV2605Ls and two ERMs, one per bus, with a motor target
+                per cue; one motor still works and says so
     emg.cpp     ADC resolution pinned and attenuation set for the S3's ADC1
     sampler.cpp the 10 ms wait now yields, because the control loop is a task
-    this file   I2C started here (imu_begin no longer owns it), the control
-                loop pinned to core 1, and a status LED
+    this file   both I2C buses started here, a colour status LED, and the
+                control loop pinned to core 1
 
-  Every behaviour, threshold, printed line, Bluetooth byte and haptic pattern
-  is unchanged. The session viewer, the Flutter app and rehab_client.py all
-  talk to this exactly as they talked to v5.
+  Every behaviour, threshold, printed line and Bluetooth byte is unchanged.
+  The session viewer, the Flutter app and rehab_client.py all talk to this
+  exactly as they talked to v5. The one felt difference is that the
+  guided-pace beat now plays on the forearm motor rather than everywhere -
+  one column of the table in haptic.cpp if that is wrong.
+
+  Two wirings, and why
+  --------------------
+  The breadboard (what Rusha is building, and what the wiring diagram draws)
+  puts the IMUs on two I2C buses. The custom PCB puts them on one SPI bus -
+  its schematic nets are CS_IMU1/CS_IMU2/SCK/MISO/MOSI. Both are real, so
+  both are here:
+
+    default                      one SPI bus, the custom PCB
+    -DRS_IMU_BUS=RS_IMU_I2C      two I2C buses, the breadboard
+
+  Nothing above imu.cpp knows which one it got.
+
+  The two DRV2605Ls split the same way, and for the same reason - 0x5A is
+  fixed, so two of them cannot answer on one bus. The PCB puts both behind a
+  TCA9543A 2-channel I2C switch (haptic.kicad_sch: one TCA9543APWR, two
+  DRV2605LDGSTs, nets SDA_H1 / SCL_H1 / SDA_H2); the breadboard gives each
+  its own bus. RS_HAPTIC_MUX in pins.h selects, and follows the IMU bus by
+  default, so the one flag above picks the whole architecture. Nothing above
+  haptic.cpp knows which it got either.
+
+  What the PCB has that this firmware does not yet drive
+  -----------------------------------------------------
+  The EMG path, and it is not a difference of bus. The prototype and the
+  breadboard read a MyoWare 2.0 module's envelope on ADC1. The PCB has no
+  MyoWare: emg.kicad_sch is its own front end - two TL074 quad op-amps, two
+  3.5 mm electrode jacks, gain and filter jumpers - feeding an ADS131M02, a
+  two-channel 24-bit delta-sigma ADC on the SPI bus with an LTC6903
+  programmable oscillator for its clock (adc.kicad_sch). Two channels, so the
+  PRD's Phase 2 triceps channel is already on the board.
+
+  RS_EMG_SRC in pins.h is the seam for it, and selecting the PCB's source
+  fails the build on purpose with the list of what it needs. See pins.h and
+  emg.cpp: every effort and fatigue figure the sleeve reports comes from this
+  one signal, so a guessed gain or sample rate does not produce a bad reading,
+  it produces a confident wrong answer.
 
   Memory: the XIAO's ESP32-S3R8 carries 512 KB SRAM and 8 MB octal PSRAM -
   the same as the DevKitC-1 N8R8, so there is no budget to re-cut here. This
@@ -64,7 +104,7 @@
     pins.h       every pin number
     params.*     therapist/host settings + fixed constants
     quat.*       quaternion maths, Madgwick filter
-    imu.*        both BMI270s over SPI, elbow angle and velocity
+    imu.*        both BMI270s (I2C or SPI), elbow angle and velocity
     emg.*        MyoWare biceps channel
     emgtest.*    EMG signal-quality test (command e)
     haptic.*     the vibration patterns
@@ -81,16 +121,29 @@
     rs_proto.*   team BLE byte formats
     ble.*        Bluetooth LE service: features, events, status, settings, commands
 
-  Wiring (XIAO ESP32S3 pin labels in brackets)
-    SPI bus, both BMI270s: SCK GPIO7 [D8], SDO->MISO GPIO8 [D9], SDI<-MOSI GPIO9 [D10]
-      upper-arm BMI270 CS GPIO1 [D0]      forearm BMI270 CS GPIO2 [D1]
-      Each breakout strapped for SPI: ADR jumper fully open, I2C pull-ups cut.
-    I2C, DRV2605L at 0x5A: SDA GPIO5 [D4], SCL GPIO6 [D5]
-    MyoWare 2.0 ENV -> GPIO4 [D3] (ADC1), MyoWare powered from 3V3
-    Status LED: on-board user LED GPIO21. BOOT button: GPIO0.
+  Wiring, with -DRS_IMU_BUS=RS_IMU_I2C, on the ESP32-S3-DevKitC-1 breadboard
+    I2C bus 0 (Wire):  SDA GPIO8,  SCL GPIO9
+                       upper-arm BMI270 0x68  +  DRV2605L 0x5A -> ERM M1
+    I2C bus 1 (Wire1): SDA GPIO17, SCL GPIO18
+                       forearm BMI270 0x68    +  DRV2605L 0x5A -> ERM M2
+      One 4.7k pull-up per line per bus, to 3V3. Both BMI270 breakouts keep
+      their ADR jumper open (0x68) - the buses are what separates them.
+    MyoWare 2.0 ENV -> GPIO4 (ADC1_CH3), MyoWare powered from 3V3
+    Status LED: on-board WS2812 on GPIO48 (GPIO38 on DevKitC-1 v1.1; build
+      with -DRS_LED_PIN=38 if it stays dark). BOOT button: GPIO0.
+    Spare: GPIO5 (where the diagram suggests MyoWare RAW), GPIO6.
+    Do not wire: GPIO0/3/45/46 (strapping), 19/20 (USB), 26-32 (flash),
+      33-37 (octal PSRAM), 43/44 (UART console).
+
+  On the XIAO the same build moves to the pins that leave the module: I2C
+  bus 0 on GPIO5/6 [D4/D5], bus 1 on GPIO8/9 [D9/D10], and the plain
+  active-LOW LED on GPIO21 instead of a WS2812. pins.h does that from
+  ARDUINO_XIAO_ESP32S3; there is nothing to edit.
 
   Build
     Arduino IDE, board "XIAO_ESP32S3" (or "ESP32S3 Dev Module" on the DevKitC).
+    The default build is the PCB: SPI IMUs, TCA9543A haptics, MyoWare on ADC1.
+    For the breadboard, add -DRS_IMU_BUS=RS_IMU_I2C.
     Libraries: SparkFun BMI270 Arduino Library, Adafruit DRV2605 Library,
                NimBLE-Arduino 2.x (h2zero).
     Both boards carry 8 MB of flash, so the default partition scheme fits -
@@ -117,26 +170,84 @@
 
 // ---- Status LED --------------------------------------------------------
 //
-// The DevKitC-1 has an addressable WS2812 and the ESP-IDF firmware uses it as
-// a colour-coded state display. The XIAO has one plain LED, so state is
-// carried by rhythm instead of colour. The app's own troubleshooting text
-// tells people "the status LED should be lit", so something has to drive it.
+// Two kinds of LED, one vocabulary. The DevKitC-1 has a single addressable
+// WS2812 and no plain LED; the XIAO has a plain active-LOW LED and no WS2812.
+// pins.h picks one at compile time.
+//
+// Rhythm carries the state on both, because rhythm is what the plain LED has
+// and because colour alone is no use to a red-green colour-blind user. Colour
+// is added on top where there is colour to add, which is how the ESP-IDF
+// firmware uses the same part. The app's troubleshooting text promises "the
+// status LED should be lit", so something has to drive it either way.
+//
+//   state                  rhythm                      colour
+//   --------------------   -------------------------   ------
+//   IMU fault              5 Hz                        red
+//   calibrating            4 Hz                        amber
+//   waiting to calibrate   1 Hz                        blue
+//   auto-paused            one blink every 2.4 s       magenta
+//   session done           slow, even                  cyan
+//   resting between sets   double blink                amber
+//   counting reps          solid                       green
 
-static void ledWrite(bool on) {
+struct Rgb { uint8_t r, g, b; };
+
+static constexpr Rgb LED_FAULT   = {255,   0,   0};
+static constexpr Rgb LED_CALIB   = {255, 150,   0};
+static constexpr Rgb LED_WAIT    = {  0,  90, 255};
+static constexpr Rgb LED_PAUSED  = {220,   0, 200};
+static constexpr Rgb LED_DONE    = {  0, 200, 200};
+static constexpr Rgb LED_REST    = {255, 150,   0};
+static constexpr Rgb LED_COUNT   = {  0, 255,  40};
+
+// Only ever write on a change. The RGB write is a timed bit sequence and the
+// plain write is a register poke, but both sit inside the 100 Hz control loop,
+// and neither needs doing a hundred times a second to look the same.
+static void ledShow(bool on, Rgb c) {
+#if RS_LED_IS_RGB
+  static int16_t lastR = -1, lastG = -1, lastB = -1;
+  uint8_t r = on ? (uint8_t)((uint16_t)c.r * LED_BRIGHTNESS / 255) : 0;
+  uint8_t g = on ? (uint8_t)((uint16_t)c.g * LED_BRIGHTNESS / 255) : 0;
+  uint8_t b = on ? (uint8_t)((uint16_t)c.b * LED_BRIGHTNESS / 255) : 0;
+  if (r == lastR && g == lastG && b == lastB) return;
+  lastR = r; lastG = g; lastB = b;
+  // rgbLedWrite is what the Arduino-ESP32 core 3.x calls the function the
+  // wiring diagram names neopixelWrite; the old name still works but is
+  // deprecated, and this build is warning-clean.
+  rgbLedWrite(PIN_LED, r, g, b);
+#else
+  (void)c;
+  static int8_t last = -1;
+  if ((int8_t)on == last) return;
+  last = (int8_t)on;
   digitalWrite(PIN_LED, (on == !LED_ACTIVE_LOW) ? HIGH : LOW);
+#endif
+}
+
+// Lit from the first instant, before anything can fail.
+static void ledBegin() {
+#if RS_LED_IS_RGB
+  rgbLedWrite(PIN_LED, 0, 0, 0);        // a WS2812 powers up with whatever it last held
+  ledShow(true, LED_WAIT);
+#else
+  pinMode(PIN_LED, OUTPUT);
+  ledShow(true, LED_WAIT);
+#endif
 }
 
 static void ledUpdate() {
   uint32_t t = millis();
   bool on;
-  if (!imuOk)                 on = (t % 200) < 100;                  // fault: 5 Hz
-  else if (calibrating)       on = (t % 250) < 125;                  // calibrating: 4 Hz
-  else if (!calibrated)       on = (t % 1000) < 500;                 // waiting: 1 Hz
-  else if (ap_paused())       on = (t % 2400) < 120;                 // paused: a blink every 2.4 s
-  else if (sessionDone)       on = (t % 3000) < 1500;                // done: slow
-  else if (resting)           on = (t % 1200) < 100 || ((t % 1200) >= 250 && (t % 1200) < 350);
-  else                        on = true;                             // counting reps: solid
-  ledWrite(on);
+  Rgb  c;
+  if (!imuOk)           { on = (t % 200) < 100;   c = LED_FAULT;  }   // fault: 5 Hz
+  else if (calibrating) { on = (t % 250) < 125;   c = LED_CALIB;  }   // calibrating: 4 Hz
+  else if (!calibrated) { on = (t % 1000) < 500;  c = LED_WAIT;   }   // waiting: 1 Hz
+  else if (ap_paused()) { on = (t % 2400) < 120;  c = LED_PAUSED; }   // paused: a blink every 2.4 s
+  else if (sessionDone) { on = (t % 3000) < 1500; c = LED_DONE;   }   // done: slow
+  else if (resting)     { on = (t % 1200) < 100 || ((t % 1200) >= 250 && (t % 1200) < 350);
+                          c = LED_REST; }
+  else                  { on = true;              c = LED_COUNT;  }   // counting reps: solid
+  ledShow(on, c);
 }
 
 // ---- Setup ------------------------------------------------------------
@@ -216,27 +327,57 @@ void setup() {
   Log.printf("# Board: ESP32-S3, %d kB SRAM free, PSRAM %d kB\n",
              (int)(ESP.getFreeHeap() / 1024), (int)(ESP.getPsramSize() / 1024));
 
-  pinMode(PIN_LED, OUTPUT);
-  ledWrite(true);                    // lit from the first instant, as the app's help text promises
+  ledBegin();                        // lit from the first instant, as the app's help text promises
   pinMode(PIN_BUTTON, INPUT_PULLUP); // BOOT button starts calibration
 
-  // The IMUs own SPI; the haptic driver owns I2C. v5 had imu_begin() start
-  // both I2C buses because both IMUs were on them, which is no longer true,
-  // so the haptic bus is started here where it belongs.
-  Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL);
+  // Both I2C buses come up here, before anything on them. They are shared:
+  // in the breadboard wiring each bus carries one BMI270 and one DRV2605L,
+  // because both BMI270 breakouts are at 0x68 and the DRV2605L is fixed at
+  // 0x5A, so neither chip can share a bus with its twin. imu_begin() and
+  // haptic_begin() both assume the buses are already running.
+  Wire.begin(PIN_I2C0_SDA, PIN_I2C0_SCL);
   Wire.setClock(I2C_HZ);
+  // Wire1 exists for the second BMI270, or for the second DRV2605L when the
+  // two are on separate buses. With the PCB's TCA9543A switch both motors are
+  // on Wire, so there is nothing for Wire1 to carry and its pins stay free.
+#if (RS_IMU_BUS == RS_IMU_I2C) || !RS_HAPTIC_MUX
+  Wire1.begin(PIN_I2C1_SDA, PIN_I2C1_SCL);
+  Wire1.setClock(I2C_HZ);
+#endif
+  // Say out loud which build this is. Two boards and two sensor wirings are
+  // live at once, and "the firmware is on the wrong one" should take seconds
+  // to spot rather than an afternoon.
+#if RS_IMU_BUS == RS_IMU_I2C
+  Log.printf("# IMUs: I2C, upper on GPIO%d/%d, forearm on GPIO%d/%d, both 0x%02X\n",
+             PIN_I2C0_SDA, PIN_I2C0_SCL, PIN_I2C1_SDA, PIN_I2C1_SCL, IMU_ADDR_PRIMARY);
+#else
+  Log.printf("# IMUs: SPI, SCK GPIO%d MISO GPIO%d MOSI GPIO%d, CS GPIO%d and GPIO%d\n",
+             PIN_SPI_SCK, PIN_SPI_MISO, PIN_SPI_MOSI, PIN_IMU_UPPER_CS, PIN_IMU_FORE_CS);
+#endif
+  Log.printf("# Haptics: %d x DRV2605L at 0x%02X, %s\n",
+             (int)RS_HAPTIC_COUNT, HAPTIC_ADDR,
+             RS_HAPTIC_MUX ? "behind a TCA9543A switch on bus 0"
+                           : "one per I2C bus");
+  // Which EMG front end this build expects. Worth its own line: a PCB flashed
+  // with the MyoWare path reads an unconnected pin, which looks like a patient
+  // who is not trying rather than like a wiring mistake.
+  Log.printf("# EMG: %s.  LED: GPIO%d (%s)\n",
+             RS_EMG_SRC == RS_EMG_ADC1
+               ? "MyoWare 2.0 ENV on ADC1"
+               : "ADS131M02 on SPI",
+             PIN_LED, RS_LED_IS_RGB ? "WS2812" : "plain");
+  if (RS_EMG_SRC == RS_EMG_ADC1)
+    Log.printf("#   GPIO%d, ADC1_CH3. The PCB has no MyoWare - if this is the "
+               "PCB, this pin is unconnected.\n", PIN_EMG_BICEPS);
 
-  imu_begin();                       // blocks until both BMI270s answer on SPI
-  while (!haptic_begin(Wire)) {
-    Log.printf("DRV2605L not found at 0x5A on GPIO%d (SDA) / GPIO%d (SCL). Check wiring...\n",
-               PIN_I2C_SDA, PIN_I2C_SCL);
-    delay(1000);
-  }
+  imu_begin();                       // blocks until both BMI270s answer
+  while (!haptic_begin()) delay(1000);
   emg_begin();
   comms_begin();
   prog_begin();                      // [AT1] saved target from earlier sessions
   ble_begin();                       // Bluetooth: advertise as "RehabSense"
-  Log.println("# Upper IMU, forearm IMU and haptic driver OK");
+  Log.printf("# Upper IMU, forearm IMU and %d haptic driver%s OK\n",
+             (int)haptic_motor_count(), haptic_motor_count() == 1 ? "" : "s");
   comms_help();
 
   haptic_play(HP_TICK);              // startup tick = haptics work

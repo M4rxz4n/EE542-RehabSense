@@ -147,6 +147,13 @@ class DemoDriver {
     _emit(kUuidConfig, _cfg.toTlv());
     _pushStatus();
 
+    // The boot banner's bus map, in the firmware's own format. A real sleeve
+    // prints this before a host can connect, so a host that joined later never
+    // sees it — but in demo mode it is the only way to exercise the parser and
+    // the hardware readouts it feeds.
+    _say('# IMUs: I2C, upper on GPIO8/9, forearm on GPIO17/18, both 0x68');
+    _say('# Haptics: 2 x DRV2605L at 0x5A.  EMG: GPIO4.  LED: GPIO48 (WS2812)');
+
     _status = Timer.periodic(const Duration(seconds: 1), (_) {
       if (_batteryPct > 5 && _rng.nextInt(12) == 0) _batteryPct--;
       _pushStatus();
@@ -356,9 +363,23 @@ class DemoDriver {
       case 'tr':
         _say('# [AT4] Saved progress cleared. The next calibration starts '
             'fresh.');
+      case 'hm':
+        // Both motors healthy, in the firmware's own format, so the Developer
+        // tab's motor status can be seen working without a sleeve. Change
+        // `found=3` to `found=1` here to see the degraded warning instead.
+        _say('# HAPTIC motors=2 found=3 upper=ok forearm=ok');
+        _say('# Add u (upper), f (forearm) or b (both) to a pattern: h1f '
+            'plays the rep click on the forearm.');
       default:
         if (cmd.startsWith('h')) {
-          _say('# $cmd: (demo mode has no motor to drive)');
+          // Echo back which motor the command asked for, as the real sleeve
+          // does, so the selector is visibly doing something in demo mode.
+          final suffix = cmd.substring(cmd.length - 1);
+          final motor = HapticMotor.values
+              .where((m) => m.suffix.isNotEmpty && m.suffix == suffix);
+          final where =
+              motor.isEmpty ? 'as usual' : motor.first.label.toLowerCase();
+          _say('# $cmd: playing on $where (demo mode has no motor to drive)');
         } else if (cmd.startsWith('t') && cmd.length > 1) {
           _say('# [AT3] Target set to ${cmd.substring(1)} deg and locked');
         } else {
