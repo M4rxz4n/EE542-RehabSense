@@ -5007,7 +5007,7 @@
 				)
 			)
 		)
-		(property "Value" "2.2nF"
+		(property "Value" "220nF"
 			(at 43.18 45.466 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7812,7 +7812,7 @@
 				)
 			)
 		)
-		(property "Value" "2.2nF"
+		(property "Value" "220nF"
 			(at 43.18 124.206 0)
 			(show_name no)
 			(do_not_autoplace no)
