@@ -1098,16 +1098,6 @@
 	)
 	(wire
 		(pts
-			(xy 149.86 73.66) (xy 156.21 73.66)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "01f615c7-9d30-41b5-8e84-c6212019295a")
-	)
-	(wire
-		(pts
 			(xy 107.95 73.66) (xy 109.22 73.66)
 		)
 		(stroke
@@ -1609,6 +1599,30 @@
 					(size 1.27 1.27)
 				)
 				(justify right)
+			)
+		)
+	)
+	(global_label "CS_CRYS"
+		(shape input)
+		(at 156.21 71.12 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "ff33510b-ac0c-42e2-ae4a-1fca3918510b")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 167.4804 71.12 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
 			)
 		)
 	)
