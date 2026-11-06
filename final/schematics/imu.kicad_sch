@@ -1197,7 +1197,18 @@
 			(embedded_fonts no)
 		)
 	)
-	(text "Forearm IMU\nSPI Mode, solder to activate I2C mode\nI2C Address 0x68"
+	(text "Bicep IMU\nSolder joint 2 to 3 (leave 2 to 1 open) to configure as SPI\nSolder joint 2 to 1 (leave 2 to 3 open) to configure as I2C\nI2C Address 0x69"
+		(exclude_from_sim no)
+		(at 188.468 57.15 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "3a742ddc-96c5-4d66-ac10-6c4e74d8ca67")
+	)
+	(text "Bicep IMU\nSolder joint 2 to 3 (leave 2 to 1 open) to configure as SPI\nSolder joint 2 to 1 (leave 2 to 3 open) to configure as I2C\nI2C Address 0x68"
 		(exclude_from_sim no)
 		(at 53.594 57.15 0)
 		(effects
@@ -1207,17 +1218,6 @@
 			(justify left)
 		)
 		(uuid "432b4df6-aabc-4bc9-8bb9-7472fcb6e498")
-	)
-	(text "Forearm IMU\nSPI Mode, solder to activate I2C mode\nI2C Address 0x69"
-		(exclude_from_sim no)
-		(at 145.288 57.404 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left)
-		)
-		(uuid "f14f5414-5c79-4072-9677-1a3afe10863f")
 	)
 	(junction
 		(at 109.22 106.68)
@@ -2488,84 +2488,6 @@
 		)
 	)
 	(symbol
-		(lib_id "power:+3V3")
-		(at 110.49 68.58 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "28591ed8-3fe7-442a-bbec-fc6ae5119dcb")
-		(property "Reference" "#PWR071"
-			(at 110.49 72.39 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "+3V45D"
-			(at 107.696 64.516 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" ""
-			(at 110.49 68.58 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 110.49 68.58 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"+3V3\""
-			(at 110.49 68.58 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "9e043d8b-2228-488a-9b59-148cd86cd07a")
-		)
-		(instances
-			(project "rehabsense-main"
-				(path "/b751250a-7d43-475a-8447-686d399cd67b/87cebee4-4100-4548-8c27-9780f68913c3"
-					(reference "#PWR071")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "Jumper:SolderJumper_3_Open")
 		(at 175.26 118.11 90)
 		(unit 1)
@@ -2674,7 +2596,7 @@
 	)
 	(symbol
 		(lib_id "power:+3V3")
-		(at 240.03 69.85 0)
+		(at 163.83 132.08 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -2682,9 +2604,9 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(uuid "44ea6cc2-e511-4311-9953-f69aa6ec7a36")
-		(property "Reference" "#PWR072"
-			(at 240.03 73.66 0)
+		(uuid "539f41aa-f1e9-45cb-850b-e79cf4ffda8f")
+		(property "Reference" "#PWR090"
+			(at 163.83 135.89 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2694,8 +2616,8 @@
 				)
 			)
 		)
-		(property "Value" "+3V45D"
-			(at 237.236 65.786 0)
+		(property "Value" "+3V3D"
+			(at 161.036 128.016 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -2706,7 +2628,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 240.03 69.85 0)
+			(at 163.83 132.08 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2717,7 +2639,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 240.03 69.85 0)
+			(at 163.83 132.08 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2728,7 +2650,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"+3V3\""
-			(at 240.03 69.85 0)
+			(at 163.83 132.08 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2739,12 +2661,90 @@
 			)
 		)
 		(pin "1"
-			(uuid "781c16ab-0e18-43fc-87fe-832de6cc764d")
+			(uuid "a0978af7-eab5-424a-b36f-ea501e278549")
 		)
 		(instances
 			(project "rehabsense-main"
 				(path "/b751250a-7d43-475a-8447-686d399cd67b/87cebee4-4100-4548-8c27-9780f68913c3"
-					(reference "#PWR072")
+					(reference "#PWR090")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:+3V3")
+		(at 110.49 68.58 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "55b9d3ef-a5ef-40ba-9f5f-b03951b291b1")
+		(property "Reference" "#PWR089"
+			(at 110.49 72.39 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+3V3D"
+			(at 107.696 64.516 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" ""
+			(at 110.49 68.58 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 110.49 68.58 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"+3V3\""
+			(at 110.49 68.58 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "03ac1f04-721f-43ab-9952-35763ea8ea34")
+		)
+		(instances
+			(project "rehabsense-main"
+				(path "/b751250a-7d43-475a-8447-686d399cd67b/87cebee4-4100-4548-8c27-9780f68913c3"
+					(reference "#PWR089")
 					(unit 1)
 				)
 			)
@@ -3259,6 +3259,84 @@
 		)
 	)
 	(symbol
+		(lib_id "power:+3V3")
+		(at 240.03 69.85 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "8673a70e-7a60-4231-b014-615628a8eb16")
+		(property "Reference" "#PWR091"
+			(at 240.03 73.66 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+3V3D"
+			(at 237.236 65.786 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" ""
+			(at 240.03 69.85 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 240.03 69.85 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"+3V3\""
+			(at 240.03 69.85 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "e1e9e7d5-da2b-4a5f-b404-99c627eca55b")
+		)
+		(instances
+			(project "rehabsense-main"
+				(path "/b751250a-7d43-475a-8447-686d399cd67b/87cebee4-4100-4548-8c27-9780f68913c3"
+					(reference "#PWR091")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Device:C")
 		(at 114.3 76.2 0)
 		(unit 1)
@@ -3708,84 +3786,6 @@
 			(project "rehabsense-main"
 				(path "/b751250a-7d43-475a-8447-686d399cd67b/87cebee4-4100-4548-8c27-9780f68913c3"
 					(reference "JP11")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:+3V3")
-		(at 163.83 132.08 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "d9586cdc-f444-4f5b-8130-74d1249161b9")
-		(property "Reference" "#PWR084"
-			(at 163.83 135.89 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "+3V45D"
-			(at 161.036 128.016 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" ""
-			(at 163.83 132.08 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 163.83 132.08 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"+3V3\""
-			(at 163.83 132.08 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "b74bec8a-b317-4366-9832-46eac4f44c33")
-		)
-		(instances
-			(project "rehabsense-main"
-				(path "/b751250a-7d43-475a-8447-686d399cd67b/87cebee4-4100-4548-8c27-9780f68913c3"
-					(reference "#PWR084")
 					(unit 1)
 				)
 			)
