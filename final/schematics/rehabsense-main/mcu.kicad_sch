@@ -5,6 +5,316 @@
 	(uuid "63d6bb51-49c6-422b-bf97-181db21b3948")
 	(paper "A4")
 	(lib_symbols
+		(symbol "6871XX183622_687106183622:6871XX183622_687106183622"
+			(pin_names
+				(offset 1.016)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "J"
+				(at -1.27 3.048 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+				)
+			)
+			(property "Value" "6871XX183622_687106183622"
+				(at 6.05 -5.08 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left bottom)
+				)
+			)
+			(property "Footprint" "6871XX183622_687106183622:687106183622"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+				)
+			)
+			(property "Datasheet" "https://s3.amazonaws.com/snapeda/datasheet/687106183622_Würth_Elektronik.pdf"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+				)
+			)
+			(property "Description" "6 Position FPC Connector Contacts, Top 0.020\" (0.50mm) Surface Mount, Right Angle"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+				)
+			)
+			(property "DATASHEET_URL" "https://s3.amazonaws.com/snapeda/datasheet/687106183622_Würth_Elektronik.pdf"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+				)
+			)
+			(property "MANUFACTURER" "Würth Elektronik"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+				)
+			)
+			(property "MPN" "687106183622"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+				)
+			)
+			(property "SOURCE_URL" "https://www.snapeda.com/parts/687106183622/W%25C3%25BCrth+Elektronik+Midcom/view-part/"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify bottom)
+				)
+			)
+			(symbol "6871XX183622_687106183622_0_0"
+				(rectangle
+					(start -10.16 -2.54)
+					(end 7.62 2.54)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type background)
+					)
+				)
+				(polyline
+					(pts
+						(xy -7.62 2.54) (xy -7.62 0)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -7.62 0) (xy 5.08 0)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 5.08 0) (xy 5.08 2.54)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(pin passive line
+					(at 5.08 -5.08 90)
+					(length 2.54)
+					(name ""
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 2.54 -5.08 90)
+					(length 2.54)
+					(name ""
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -5.08 90)
+					(length 2.54)
+					(name ""
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -2.54 -5.08 90)
+					(length 2.54)
+					(name ""
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "4"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -5.08 -5.08 90)
+					(length 2.54)
+					(name ""
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "5"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -7.62 -5.08 90)
+					(length 2.54)
+					(name ""
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "6"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 10.16 0 180)
+					(length 2.54)
+					(name ""
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "Z1"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -12.7 0 0)
+					(length 2.54)
+					(name ""
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "Z2"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 		(symbol "Connector:TestPoint"
 			(pin_numbers
 				(hide yes)
@@ -251,184 +561,6 @@
 					(at 0 -3.81 90)
 					(length 1.27)
 					(name ""
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "2"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-			)
-			(embedded_fonts no)
-		)
-		(symbol "Jumper:SolderJumper_2_Open"
-			(pin_numbers
-				(hide yes)
-			)
-			(pin_names
-				(offset 0)
-				(hide yes)
-			)
-			(exclude_from_sim no)
-			(in_bom no)
-			(on_board yes)
-			(in_pos_files yes)
-			(duplicate_pin_numbers_are_jumpers no)
-			(property "Reference" "JP"
-				(at 0 2.032 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Value" "SolderJumper_2_Open"
-				(at 0 -2.54 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Footprint" ""
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Datasheet" ""
-				(at 0 -7.62 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Description" "Solder Jumper, 2-pole, open"
-				(at 0 -5.08 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "ki_keywords" "solder jumper SPST"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "ki_fp_filters" "SolderJumper*Open*"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(symbol "SolderJumper_2_Open_0_1"
-				(polyline
-					(pts
-						(xy -0.254 1.016) (xy -0.254 -1.016)
-					)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(arc
-					(start -0.254 -1.016)
-					(mid -1.2656 0)
-					(end -0.254 1.016)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type outline)
-					)
-				)
-				(arc
-					(start 0.254 1.016)
-					(mid 1.2656 0)
-					(end 0.254 -1.016)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type outline)
-					)
-				)
-				(polyline
-					(pts
-						(xy 0.254 1.016) (xy 0.254 -1.016)
-					)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-			)
-			(symbol "SolderJumper_2_Open_1_1"
-				(pin passive line
-					(at -5.08 0 0)
-					(length 3.81)
-					(name "A"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "1"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at 5.08 0 180)
-					(length 3.81)
-					(name "B"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -1215,28 +1347,10 @@
 		)
 	)
 	(junction
-		(at 149.86 78.74)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "047fabaf-1cbc-42e1-bba8-b3f85908a1dc")
-	)
-	(junction
-		(at 152.4 81.28)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "04c32372-5fd3-46b5-9347-0b815cfdaf10")
-	)
-	(junction
 		(at 71.12 69.85)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "0fccd8df-bbb5-460a-b5b8-cb14a2b1b410")
-	)
-	(junction
-		(at 154.94 83.82)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "1c3eb45c-2a18-4225-a9dc-b1d542dcae0a")
 	)
 	(junction
 		(at 87.63 81.28)
@@ -1245,32 +1359,26 @@
 		(uuid "2f925704-c932-4464-8576-85d2dd13e53d")
 	)
 	(junction
-		(at 109.22 71.12)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "3541e636-34fb-4ab6-8d23-871b6088b77f")
-	)
-	(junction
 		(at 88.9 83.82)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "8915778f-09b7-4053-9c5b-3bcf7a09a4b3")
 	)
 	(junction
-		(at 107.95 73.66)
+		(at 153.67 63.5)
 		(diameter 0)
 		(color 0 0 0 0)
-		(uuid "b564b18e-b15a-4ee4-8f7d-b7480176e099")
+		(uuid "ed56bef9-4034-4923-9711-7f3baed1f3f4")
 	)
 	(wire
 		(pts
-			(xy 107.95 73.66) (xy 109.22 73.66)
+			(xy 118.11 132.08) (xy 118.11 133.35)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "092a370f-dea4-4967-846d-d1da231f9aae")
+		(uuid "092b0126-8fe9-48b8-957f-4022b7f82624")
 	)
 	(wire
 		(pts
@@ -1284,13 +1392,23 @@
 	)
 	(wire
 		(pts
-			(xy 152.4 81.28) (xy 156.21 81.28)
+			(xy 123.19 119.38) (xy 125.73 119.38)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "1d5780d4-11cf-414b-8f9e-bef083344bf0")
+		(uuid "206ded1e-2fb0-4417-9f64-10c3fd36f6c1")
+	)
+	(wire
+		(pts
+			(xy 123.19 127) (xy 137.16 127)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "23ee9cfc-9c7a-4124-9f6c-c97138f020bb")
 	)
 	(wire
 		(pts
@@ -1314,13 +1432,13 @@
 	)
 	(wire
 		(pts
-			(xy 104.14 71.12) (xy 109.22 71.12)
+			(xy 153.67 63.5) (xy 153.67 66.04)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "3495f6ad-0153-4513-a064-b86e82da4740")
+		(uuid "31ae8779-c969-4147-88ae-ab87581e8b20")
 	)
 	(wire
 		(pts
@@ -1344,13 +1462,23 @@
 	)
 	(wire
 		(pts
-			(xy 154.94 83.82) (xy 156.21 83.82)
+			(xy 149.86 81.28) (xy 161.29 81.28)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "4cd72f3e-9acd-4a9a-87d0-6ee165123f26")
+		(uuid "3a9efbbd-bcf0-43da-84ee-8ed18e70b58e")
+	)
+	(wire
+		(pts
+			(xy 161.29 63.5) (xy 153.67 63.5)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "48955534-7b1d-4841-9f5d-afe7d8bab84e")
 	)
 	(wire
 		(pts
@@ -1364,13 +1492,33 @@
 	)
 	(wire
 		(pts
-			(xy 149.86 81.28) (xy 152.4 81.28)
+			(xy 102.87 76.2) (xy 109.22 76.2)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "74411cf6-7585-4dd9-9eca-7da41ebad09b")
+		(uuid "5bc4668c-efb1-4f86-b572-5bf8a659ca74")
+	)
+	(wire
+		(pts
+			(xy 118.11 109.22) (xy 118.11 107.95)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "71fa68db-9e3b-4922-962c-ba0a34b7ea54")
+	)
+	(wire
+		(pts
+			(xy 123.19 114.3) (xy 137.16 114.3)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "7244e901-60eb-4b86-b067-886a4832ba5e")
 	)
 	(wire
 		(pts
@@ -1384,6 +1532,16 @@
 	)
 	(wire
 		(pts
+			(xy 123.19 121.92) (xy 143.51 121.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "8980a3c4-2f6c-40f8-a06e-c4945a8dff3d")
+	)
+	(wire
+		(pts
 			(xy 88.9 83.82) (xy 109.22 83.82)
 		)
 		(stroke
@@ -1394,23 +1552,23 @@
 	)
 	(wire
 		(pts
-			(xy 149.86 71.12) (xy 156.21 71.12)
+			(xy 149.86 78.74) (xy 153.67 78.74)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "9263ebfd-3b45-4958-aa00-0113ec34ea60")
+		(uuid "908cfbe8-cf69-4510-adad-be1eb2a1c0b4")
 	)
 	(wire
 		(pts
-			(xy 149.86 83.82) (xy 154.94 83.82)
+			(xy 161.29 66.04) (xy 161.29 63.5)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "928097ea-538a-46ae-b6ba-c55d4a0fef22")
+		(uuid "9e51bc09-2049-4caa-b715-0855f12bd48e")
 	)
 	(wire
 		(pts
@@ -1424,6 +1582,26 @@
 	)
 	(wire
 		(pts
+			(xy 161.29 81.28) (xy 161.29 73.66)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b114c973-0215-451e-8992-60fe7c50a99e")
+	)
+	(wire
+		(pts
+			(xy 153.67 78.74) (xy 153.67 73.66)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b476f58a-ce91-4bcb-b00e-4e9a47ab4a34")
+	)
+	(wire
+		(pts
 			(xy 153.67 60.96) (xy 153.67 63.5)
 		)
 		(stroke
@@ -1434,6 +1612,16 @@
 	)
 	(wire
 		(pts
+			(xy 102.87 78.74) (xy 109.22 78.74)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c4fc9cf1-abed-4d9e-b0a2-2c2dc00a852b")
+	)
+	(wire
+		(pts
 			(xy 71.12 83.82) (xy 88.9 83.82)
 		)
 		(stroke
@@ -1441,16 +1629,6 @@
 			(type default)
 		)
 		(uuid "c79c23d5-694c-4eb6-abe7-193f59086683")
-	)
-	(wire
-		(pts
-			(xy 104.14 73.66) (xy 107.95 73.66)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "cbd79840-a367-48f3-831c-7596288e96bf")
 	)
 	(wire
 		(pts
@@ -1474,13 +1652,23 @@
 	)
 	(wire
 		(pts
-			(xy 149.86 78.74) (xy 156.21 78.74)
+			(xy 118.11 107.95) (xy 120.65 107.95)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "e5fb7be2-e39c-4f0d-9a38-d909e4bf919f")
+		(uuid "e801432b-7282-4207-8b1e-e47653bc24b1")
+	)
+	(wire
+		(pts
+			(xy 123.19 116.84) (xy 125.73 116.84)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ea220d2c-5a60-4d16-a4e2-cb9865f306f7")
 	)
 	(wire
 		(pts
@@ -1492,29 +1680,9 @@
 		)
 		(uuid "fd98be8f-b62a-44fe-98b4-4d1309834614")
 	)
-	(label "SDA"
-		(at 81.28 81.28 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "378d8ed6-a8f1-444c-80f5-046f3cb3d831")
-	)
-	(label "SCL"
-		(at 81.28 83.82 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "d7360757-2942-492a-b87c-587b4e60c071")
-	)
 	(global_label "ADC2"
 		(shape input)
-		(at 99.06 78.74 180)
+		(at 102.87 78.74 180)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -1524,7 +1692,7 @@
 		)
 		(uuid "09d38c98-03da-431a-b215-897dbd915305")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 91.2367 78.74 0)
+			(at 95.0467 78.74 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1536,9 +1704,9 @@
 			)
 		)
 	)
-	(global_label "MISO"
+	(global_label "SDA1"
 		(shape input)
-		(at 156.21 81.28 0)
+		(at 125.73 119.38 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -1546,57 +1714,9 @@
 			)
 			(justify left)
 		)
-		(uuid "23f4354f-2350-463b-910e-a012556578bc")
+		(uuid "3db011b0-926c-4f68-97de-90514207e25b")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 163.7914 81.28 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-	)
-	(global_label "DRDY_ADC"
-		(shape input)
-		(at 104.14 73.66 180)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "29b6cd97-925e-4059-a8d6-7e9f297cd002")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 91.66 73.66 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-	)
-	(global_label "MOSI"
-		(shape input)
-		(at 156.21 83.82 0)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left)
-		)
-		(uuid "6ae0ad75-46d8-4387-83be-45a321ba2e6e")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 163.7914 83.82 0)
+			(at 133.4928 119.38 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1610,7 +1730,7 @@
 	)
 	(global_label "ADC1"
 		(shape input)
-		(at 99.06 76.2 180)
+		(at 102.87 76.2 180)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -1620,7 +1740,7 @@
 		)
 		(uuid "6b9cffc6-e2f2-49f0-a70a-5302e0f57e4d")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 91.2367 76.2 0)
+			(at 95.0467 76.2 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1632,9 +1752,9 @@
 			)
 		)
 	)
-	(global_label "SCK"
+	(global_label "SCL1"
 		(shape input)
-		(at 156.21 78.74 0)
+		(at 125.73 116.84 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -1642,9 +1762,9 @@
 			)
 			(justify left)
 		)
-		(uuid "8abeed0a-5082-4894-b9e0-0f9c94181ab5")
+		(uuid "8ff81f5e-3382-4ec4-8ddf-160f445443fe")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 162.9447 78.74 0)
+			(at 133.4323 116.84 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1656,7 +1776,31 @@
 			)
 		)
 	)
-	(global_label "SCL"
+	(global_label "SDA1"
+		(shape input)
+		(at 153.67 78.74 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "939d011b-4a9f-49b9-ac91-1130d449f7c8")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 161.4328 78.74 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+	)
+	(global_label "SCL0"
 		(shape input)
 		(at 71.12 83.82 180)
 		(fields_autoplaced yes)
@@ -1668,7 +1812,7 @@
 		)
 		(uuid "a12445f2-ee41-4bbf-9a38-01e1b2dd934e")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 64.6272 83.82 0)
+			(at 63.4177 83.82 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1680,19 +1824,19 @@
 			)
 		)
 	)
-	(global_label "CS_ADC"
+	(global_label "SCL1"
 		(shape input)
-		(at 104.14 71.12 180)
+		(at 161.29 81.28 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-			(justify right)
+			(justify left)
 		)
-		(uuid "cf26000e-fd6c-4293-9672-c1f22b6c8552")
+		(uuid "c88d8bdd-71a1-4be4-b30e-60ce3b3cac5f")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 94.0791 71.12 0)
+			(at 168.9923 81.28 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1700,11 +1844,11 @@
 				(font
 					(size 1.27 1.27)
 				)
-				(justify right)
+				(justify left)
 			)
 		)
 	)
-	(global_label "SDA"
+	(global_label "SDA0"
 		(shape input)
 		(at 78.74 81.28 180)
 		(fields_autoplaced yes)
@@ -1716,7 +1860,7 @@
 		)
 		(uuid "d967ce10-6940-4572-a590-32580a070724")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 72.1867 81.28 0)
+			(at 70.9772 81.28 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1728,54 +1872,20 @@
 			)
 		)
 	)
-	(global_label "CS_CRYS"
-		(shape input)
-		(at 156.21 71.12 0)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left)
-		)
-		(uuid "ff33510b-ac0c-42e2-ae4a-1fca3918510b")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 167.4804 71.12 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-	)
 	(symbol
-		(lib_id "Jumper:SolderJumper_2_Open")
-		(at 104.14 78.74 180)
+		(lib_id "power:GND")
+		(at 137.16 114.3 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
-		(in_bom no)
+		(in_bom yes)
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(uuid "0f706f9d-24ab-4358-a47a-effb02279bc6")
-		(property "Reference" "JP10"
-			(at 102.87 80.264 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "SolderJumper_2_Open"
-			(at 117.094 81.788 0)
+		(fields_autoplaced yes)
+		(uuid "08d42abc-fd76-4b25-b250-cf9fd755cc56")
+		(property "Reference" "#PWR022"
+			(at 137.16 120.65 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1783,11 +1893,20 @@
 				(font
 					(size 1.27 1.27)
 				)
-				(justify left)
 			)
 		)
-		(property "Footprint" "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm"
-			(at 104.14 78.74 0)
+		(property "Value" "DGND"
+			(at 137.16 119.38 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 137.16 114.3 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1798,7 +1917,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 104.14 71.12 0)
+			(at 137.16 114.3 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1808,8 +1927,8 @@
 				)
 			)
 		)
-		(property "Description" "Solder Jumper, 2-pole, open"
-			(at 104.14 73.66 0)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 137.16 114.3 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1820,15 +1939,89 @@
 			)
 		)
 		(pin "1"
-			(uuid "43254e9d-1494-42d6-a744-94b5bc13f42e")
-		)
-		(pin "2"
-			(uuid "59416d08-32d7-41c7-8d63-4952f0938c9b")
+			(uuid "08fc4928-a763-490b-99eb-e4b078997ecd")
 		)
 		(instances
 			(project "rehabsense-main"
 				(path "/b751250a-7d43-475a-8447-686d399cd67b/4c292b8e-bacf-4862-ad93-06ae5fddd327"
-					(reference "JP10")
+					(reference "#PWR022")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 120.65 107.95 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "123a78d6-6341-4c4e-82ac-e77a4fed98ff")
+		(property "Reference" "#PWR021"
+			(at 120.65 114.3 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "DGND"
+			(at 125.222 110.49 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 120.65 107.95 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 120.65 107.95 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 120.65 107.95 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "d9d12c6f-e5f0-4efd-b4b5-00f883473710")
+		)
+		(instances
+			(project "rehabsense-main"
+				(path "/b751250a-7d43-475a-8447-686d399cd67b/4c292b8e-bacf-4862-ad93-06ae5fddd327"
+					(reference "#PWR021")
 					(unit 1)
 				)
 			)
@@ -1845,7 +2038,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "2ef65c8b-f8dd-496d-8547-48152d4c93a6")
-		(property "Reference" "#PWR086"
+		(property "Reference" "#PWR026"
 			(at 153.67 64.77 0)
 			(hide yes)
 			(show_name no)
@@ -1906,15 +2099,15 @@
 		(instances
 			(project "rehabsense-main"
 				(path "/b751250a-7d43-475a-8447-686d399cd67b/4c292b8e-bacf-4862-ad93-06ae5fddd327"
-					(reference "#PWR086")
+					(reference "#PWR026")
 					(unit 1)
 				)
 			)
 		)
 	)
 	(symbol
-		(lib_id "Connector:TestPoint")
-		(at 149.86 78.74 0)
+		(lib_id "power:+3V3")
+		(at 143.51 121.92 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -1922,20 +2115,9 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(uuid "4bddf61b-abc9-457d-b6de-c02f4d612db0")
-		(property "Reference" "TP8"
-			(at 151.384 75.184 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "TestPoint"
-			(at 152.4 76.7079 0)
+		(uuid "3d6e79ae-43b0-471a-9f46-14e83857ebab")
+		(property "Reference" "#PWR024"
+			(at 143.51 125.73 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1943,11 +2125,21 @@
 				(font
 					(size 1.27 1.27)
 				)
+			)
+		)
+		(property "Value" "+3V3D"
+			(at 140.716 117.856 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 				(justify left)
 			)
 		)
-		(property "Footprint" "Connector_Pin:Pin_D1.0mm_L10.0mm_LooseFit"
-			(at 154.94 78.74 0)
+		(property "Footprint" ""
+			(at 143.51 121.92 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1958,7 +2150,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 154.94 78.74 0)
+			(at 143.51 121.92 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1968,8 +2160,8 @@
 				)
 			)
 		)
-		(property "Description" "test point"
-			(at 149.86 78.74 0)
+		(property "Description" "Power symbol creates a global label with name \"+3V3\""
+			(at 143.51 121.92 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1980,12 +2172,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "cc4ab89e-d02d-44f2-b10b-78a35ab710e5")
+			(uuid "fca67635-9f86-4973-ae96-43a91117b4ae")
 		)
 		(instances
 			(project "rehabsense-main"
 				(path "/b751250a-7d43-475a-8447-686d399cd67b/4c292b8e-bacf-4862-ad93-06ae5fddd327"
-					(reference "TP8")
+					(reference "#PWR024")
 					(unit 1)
 				)
 			)
@@ -2002,7 +2194,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "4dcb3da1-e3b4-4033-ad09-c53d7d526ad8")
-		(property "Reference" "TP16"
+		(property "Reference" "TP7"
 			(at 88.392 85.09 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2064,7 +2256,7 @@
 		(instances
 			(project "rehabsense-main"
 				(path "/b751250a-7d43-475a-8447-686d399cd67b/4c292b8e-bacf-4862-ad93-06ae5fddd327"
-					(reference "TP16")
+					(reference "TP7")
 					(unit 1)
 				)
 			)
@@ -2081,7 +2273,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "5f24a146-6364-429d-850d-f0e17718deac")
-		(property "Reference" "#PWR087"
+		(property "Reference" "#PWR019"
 			(at 71.12 72.39 0)
 			(hide yes)
 			(show_name no)
@@ -2142,7 +2334,158 @@
 		(instances
 			(project "rehabsense-main"
 				(path "/b751250a-7d43-475a-8447-686d399cd67b/4c292b8e-bacf-4862-ad93-06ae5fddd327"
-					(reference "#PWR087")
+					(reference "#PWR019")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "6871XX183622_687106183622:6871XX183622_687106183622")
+		(at 118.11 119.38 90)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "68a77908-4442-4ba2-a1ba-a4a50b53f5bc")
+		(property "Reference" "J2"
+			(at 114.3 119.3799 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "6871XX183622_687106183622"
+			(at 114.3 121.9199 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "687106183622:687106183622"
+			(at 118.11 119.38 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+			)
+		)
+		(property "Datasheet" "https://s3.amazonaws.com/snapeda/datasheet/687106183622_Würth_Elektronik.pdf"
+			(at 118.11 119.38 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+			)
+		)
+		(property "Description" "6 Position FPC Connector Contacts, Top 0.020\" (0.50mm) Surface Mount, Right Angle"
+			(at 118.11 119.38 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+			)
+		)
+		(property "DATASHEET_URL" "https://s3.amazonaws.com/snapeda/datasheet/687106183622_Würth_Elektronik.pdf"
+			(at 118.11 119.38 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+			)
+		)
+		(property "MANUFACTURER" "Würth Elektronik"
+			(at 118.11 119.38 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+			)
+		)
+		(property "MPN" "687106183622"
+			(at 118.11 119.38 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+			)
+		)
+		(property "SOURCE_URL" "https://www.snapeda.com/parts/687106183622/W%25C3%25BCrth+Elektronik+Midcom/view-part/"
+			(at 118.11 119.38 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify bottom)
+			)
+		)
+		(pin "4"
+			(uuid "aed64e33-d3e1-40c6-9426-fd103e974721")
+		)
+		(pin "3"
+			(uuid "209a3a8b-3d9d-4aba-af48-04b6216c9e7c")
+		)
+		(pin "6"
+			(uuid "d42f7dd5-f58f-416a-a95b-5afa537623a7")
+		)
+		(pin "Z2"
+			(uuid "883c0d75-2def-4e5b-9605-820908bc129d")
+		)
+		(pin "Z1"
+			(uuid "7c7a8f3b-0ce7-40e2-b929-16c7d2429cc3")
+		)
+		(pin "2"
+			(uuid "8331f8b2-26ae-42d8-8339-eb202296f9ff")
+		)
+		(pin "5"
+			(uuid "2ea3ed7e-d1d4-4f74-a5ea-dfe4e9bdf27c")
+		)
+		(pin "1"
+			(uuid "f04f33ab-19fe-4c9d-9e65-d9c1e3836acc")
+		)
+		(instances
+			(project "rehabsense-main"
+				(path "/b751250a-7d43-475a-8447-686d399cd67b/4c292b8e-bacf-4862-ad93-06ae5fddd327"
+					(reference "J2")
 					(unit 1)
 				)
 			)
@@ -2160,7 +2503,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "6ebad3fd-9b79-4729-9b20-5ba2c4c95d95")
-		(property "Reference" "#PWR010"
+		(property "Reference" "#PWR025"
 			(at 152.4 97.79 0)
 			(hide yes)
 			(show_name no)
@@ -2220,7 +2563,88 @@
 		(instances
 			(project "rehabsense-main"
 				(path "/b751250a-7d43-475a-8447-686d399cd67b/4c292b8e-bacf-4862-ad93-06ae5fddd327"
-					(reference "#PWR010")
+					(reference "#PWR025")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 161.29 69.85 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "6ffd162e-1212-4e52-8c34-b32e503114eb")
+		(property "Reference" "R10"
+			(at 163.068 68.58 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "2.2k"
+			(at 161.29 71.882 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
+			(at 159.512 69.85 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 161.29 69.85 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Resistor"
+			(at 161.29 69.85 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "2"
+			(uuid "8c1185eb-2832-4b48-b87a-54100f120353")
+		)
+		(pin "1"
+			(uuid "d6f2a2f5-754d-4abf-b8b6-2ee6fe17c632")
+		)
+		(instances
+			(project "rehabsense-main"
+				(path "/b751250a-7d43-475a-8447-686d399cd67b/4c292b8e-bacf-4862-ad93-06ae5fddd327"
+					(reference "R10")
 					(unit 1)
 				)
 			)
@@ -2238,7 +2662,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "744c7934-a0eb-48db-80cd-7c00051b6981")
-		(property "Reference" "U6"
+		(property "Reference" "U3"
 			(at 129.54 55.88 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2518,7 +2942,88 @@
 		(instances
 			(project "rehabsense-main"
 				(path "/b751250a-7d43-475a-8447-686d399cd67b/4c292b8e-bacf-4862-ad93-06ae5fddd327"
-					(reference "U6")
+					(reference "U3")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 153.67 69.85 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "83869f60-b1b0-48de-b357-5dbd064a0c75")
+		(property "Reference" "R9"
+			(at 155.448 68.58 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "2.2k"
+			(at 153.67 71.882 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
+			(at 151.892 69.85 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 153.67 69.85 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Resistor"
+			(at 153.67 69.85 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "2"
+			(uuid "9cede5c2-a034-40af-9b5d-1c418ec1722a")
+		)
+		(pin "1"
+			(uuid "30148de3-e03a-4d62-aac5-3295b2fa851c")
+		)
+		(instances
+			(project "rehabsense-main"
+				(path "/b751250a-7d43-475a-8447-686d399cd67b/4c292b8e-bacf-4862-ad93-06ae5fddd327"
+					(reference "R9")
 					(unit 1)
 				)
 			)
@@ -2535,7 +3040,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "889e03e7-dfdf-4743-842b-7b56ba05e3fa")
-		(property "Reference" "TP15"
+		(property "Reference" "TP6"
 			(at 83.312 76.708 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2597,15 +3102,15 @@
 		(instances
 			(project "rehabsense-main"
 				(path "/b751250a-7d43-475a-8447-686d399cd67b/4c292b8e-bacf-4862-ad93-06ae5fddd327"
-					(reference "TP15")
+					(reference "TP6")
 					(unit 1)
 				)
 			)
 		)
 	)
 	(symbol
-		(lib_id "Connector:TestPoint")
-		(at 154.94 83.82 0)
+		(lib_id "power:GND")
+		(at 137.16 127 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -2613,20 +3118,10 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(uuid "9025bf4f-48fa-4588-909d-ce0947dc03ef")
-		(property "Reference" "TP10"
-			(at 153.67 86.106 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "TestPoint"
-			(at 157.48 81.7879 0)
+		(fields_autoplaced yes)
+		(uuid "a1191e9b-9ffe-4535-b2e7-328811665b9a")
+		(property "Reference" "#PWR023"
+			(at 137.16 133.35 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2634,11 +3129,20 @@
 				(font
 					(size 1.27 1.27)
 				)
-				(justify left)
 			)
 		)
-		(property "Footprint" "Connector_Pin:Pin_D1.0mm_L10.0mm_LooseFit"
-			(at 160.02 83.82 0)
+		(property "Value" "DGND"
+			(at 137.16 132.08 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 137.16 127 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2649,7 +3153,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 160.02 83.82 0)
+			(at 137.16 127 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2659,87 +3163,8 @@
 				)
 			)
 		)
-		(property "Description" "test point"
-			(at 154.94 83.82 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "139008e7-5557-47f8-b490-9409cd1aee13")
-		)
-		(instances
-			(project "rehabsense-main"
-				(path "/b751250a-7d43-475a-8447-686d399cd67b/4c292b8e-bacf-4862-ad93-06ae5fddd327"
-					(reference "TP10")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Connector:TestPoint")
-		(at 107.95 73.66 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "b273888b-0c3f-41e5-a069-738e159bcd8c")
-		(property "Reference" "TP13"
-			(at 102.616 68.834 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "TestPoint"
-			(at 110.49 71.6279 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Connector_Pin:Pin_D1.0mm_L10.0mm_LooseFit"
-			(at 113.03 73.66 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 113.03 73.66 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "test point"
-			(at 107.95 73.66 0)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 137.16 127 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2750,91 +3175,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "adcdafcc-f2cf-4487-82bc-7b614d24f014")
+			(uuid "148b263a-35ac-49e4-ae59-dc9c9217fc62")
 		)
 		(instances
 			(project "rehabsense-main"
 				(path "/b751250a-7d43-475a-8447-686d399cd67b/4c292b8e-bacf-4862-ad93-06ae5fddd327"
-					(reference "TP13")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Connector:TestPoint")
-		(at 152.4 81.28 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "b6e880bf-60a1-47d8-9324-2e64bcadd7a5")
-		(property "Reference" "TP9"
-			(at 148.336 80.01 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "TestPoint"
-			(at 154.94 79.2479 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Connector_Pin:Pin_D1.0mm_L10.0mm_LooseFit"
-			(at 157.48 81.28 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 157.48 81.28 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "test point"
-			(at 152.4 81.28 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "12215445-9070-4eaa-b735-64ea6f09aa15")
-		)
-		(instances
-			(project "rehabsense-main"
-				(path "/b751250a-7d43-475a-8447-686d399cd67b/4c292b8e-bacf-4862-ad93-06ae5fddd327"
-					(reference "TP9")
+					(reference "#PWR023")
 					(unit 1)
 				)
 			)
@@ -2851,7 +3197,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "c36df171-76dc-4f06-b1d3-6745577d888b")
-		(property "Reference" "R3"
+		(property "Reference" "R8"
 			(at 80.518 73.66 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2915,7 +3261,85 @@
 		(instances
 			(project "rehabsense-main"
 				(path "/b751250a-7d43-475a-8447-686d399cd67b/4c292b8e-bacf-4862-ad93-06ae5fddd327"
-					(reference "R3")
+					(reference "R8")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 118.11 133.35 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "c4ddd061-c239-4af0-8370-d5be6baa3384")
+		(property "Reference" "#PWR020"
+			(at 118.11 139.7 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "DGND"
+			(at 118.11 138.43 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 118.11 133.35 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 118.11 133.35 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 118.11 133.35 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "2734d5bd-cbd7-47f6-ad08-cce85c0caf67")
+		)
+		(instances
+			(project "rehabsense-main"
+				(path "/b751250a-7d43-475a-8447-686d399cd67b/4c292b8e-bacf-4862-ad93-06ae5fddd327"
+					(reference "#PWR020")
 					(unit 1)
 				)
 			)
@@ -2932,7 +3356,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "c5c49ead-78c8-4d8c-8c59-d1c61d0da4ff")
-		(property "Reference" "R4"
+		(property "Reference" "R7"
 			(at 72.898 73.66 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2996,168 +3420,7 @@
 		(instances
 			(project "rehabsense-main"
 				(path "/b751250a-7d43-475a-8447-686d399cd67b/4c292b8e-bacf-4862-ad93-06ae5fddd327"
-					(reference "R4")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Connector:TestPoint")
-		(at 109.22 71.12 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "e6f00eec-f5df-4165-a641-b57f0fe529d5")
-		(property "Reference" "TP11"
-			(at 104.902 66.548 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "TestPoint"
-			(at 111.76 69.0879 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Connector_Pin:Pin_D1.0mm_L10.0mm_LooseFit"
-			(at 114.3 71.12 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 114.3 71.12 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "test point"
-			(at 109.22 71.12 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "ce110dad-0ff3-4e88-bb90-63e56b9ef5c5")
-		)
-		(instances
-			(project "rehabsense-main"
-				(path "/b751250a-7d43-475a-8447-686d399cd67b/4c292b8e-bacf-4862-ad93-06ae5fddd327"
-					(reference "TP11")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Jumper:SolderJumper_2_Open")
-		(at 104.14 76.2 180)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom no)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "fe99fca8-2cea-43a9-b6d4-d59c3ec2c663")
-		(property "Reference" "JP9"
-			(at 109.474 75.184 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "SolderJumper_2_Open"
-			(at 117.094 79.248 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm"
-			(at 104.14 76.2 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 104.14 68.58 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Solder Jumper, 2-pole, open"
-			(at 104.14 71.12 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "72add9c2-dbd4-4627-a914-d8be0cfd6e54")
-		)
-		(pin "2"
-			(uuid "16ffd850-6e00-4dd3-b4da-49ed88392fca")
-		)
-		(instances
-			(project "rehabsense-main"
-				(path "/b751250a-7d43-475a-8447-686d399cd67b/4c292b8e-bacf-4862-ad93-06ae5fddd327"
-					(reference "JP9")
+					(reference "R7")
 					(unit 1)
 				)
 			)

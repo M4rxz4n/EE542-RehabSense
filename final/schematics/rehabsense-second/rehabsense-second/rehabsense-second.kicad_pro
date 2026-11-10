@@ -488,7 +488,7 @@
     "pinned_symbol_libs": []
   },
   "meta": {
-    "filename": "rehabsense-main.kicad_pro",
+    "filename": "rehabsense-second.kicad_pro",
     "version": 3
   },
   "net_settings": {
@@ -598,114 +598,12 @@
           "label": "Datasheet",
           "name": "Datasheet",
           "show": true
-        },
-        {
-          "group_by": false,
-          "label": "Check_prices",
-          "name": "Check_prices",
-          "show": false
-        },
-        {
-          "group_by": false,
-          "label": "MANUFACTURER",
-          "name": "MANUFACTURER",
-          "show": false
-        },
-        {
-          "group_by": false,
-          "label": "MANUFACTURER_PART_NUMBER",
-          "name": "MANUFACTURER_PART_NUMBER",
-          "show": false
-        },
-        {
-          "group_by": false,
-          "label": "MAXIMUM_PACKAGE_HEIGHT",
-          "name": "MAXIMUM_PACKAGE_HEIGHT",
-          "show": false
-        },
-        {
-          "group_by": false,
-          "label": "MF",
-          "name": "MF",
-          "show": false
-        },
-        {
-          "group_by": false,
-          "label": "MP",
-          "name": "MP",
-          "show": false
-        },
-        {
-          "group_by": false,
-          "label": "Package",
-          "name": "Package",
-          "show": false
-        },
-        {
-          "group_by": false,
-          "label": "PARTREV",
-          "name": "PARTREV",
-          "show": false
-        },
-        {
-          "group_by": false,
-          "label": "PATREV",
-          "name": "PATREV",
-          "show": false
-        },
-        {
-          "group_by": false,
-          "label": "Price",
-          "name": "Price",
-          "show": false
-        },
-        {
-          "group_by": false,
-          "label": "SnapEDA_Link",
-          "name": "SnapEDA_Link",
-          "show": false
-        },
-        {
-          "group_by": false,
-          "label": "SNAPEDA_PN",
-          "name": "SNAPEDA_PN",
-          "show": false
-        },
-        {
-          "group_by": false,
-          "label": "STANDARD",
-          "name": "STANDARD",
-          "show": false
-        },
-        {
-          "group_by": false,
-          "label": "VENDOR",
-          "name": "VENDOR",
-          "show": false
-        },
-        {
-          "group_by": false,
-          "label": "Availability",
-          "name": "Availability",
-          "show": false
-        },
-        {
-          "group_by": false,
-          "label": "Description",
-          "name": "Description",
-          "show": false
-        },
-        {
-          "group_by": false,
-          "label": "#",
-          "name": "${ITEM_NUMBER}",
-          "show": false
         }
       ],
       "filter_string": "",
       "group_symbols": true,
       "include_excluded_from_bom": true,
-      "name": "",
+      "name": "Default Editing",
       "sort_asc": true,
       "sort_field": "Reference"
     },
@@ -745,42 +643,18 @@
     "subpart_id_separator": 0,
     "top_level_sheets": [
       {
-        "filename": "rehabsense-main.kicad_sch",
-        "name": "rehabsense-main",
-        "uuid": "b751250a-7d43-475a-8447-686d399cd67b"
+        "filename": "rehabsense-second.kicad_sch",
+        "name": "Root",
+        "uuid": "add6a4bd-bc27-405f-8e81-ca1c650b0c64"
       }
     ],
-    "used_designators": "U1-14,L1-4,#PWR1-94,C1-51,J1-6,R1-48,JP1-12,TP1-24,FB1",
+    "used_designators": "#PWR1-16,#PWR18,#PWR20,#PWR47,#PWR61,#PWR65,#PWR68-70,#PWR90-92,C1-10,C36-38,C41,J1,J6,R1-2,U1-2,U4-5,TP1-2,TP19-22",
     "variants": []
   },
   "sheets": [
     [
-      "b751250a-7d43-475a-8447-686d399cd67b",
-      "rehabsense-main"
-    ],
-    [
-      "b0bb90cb-8dc9-410c-88d7-96c075ed51f1",
-      "power"
-    ],
-    [
-      "4c292b8e-bacf-4862-ad93-06ae5fddd327",
-      "mcu"
-    ],
-    [
-      "87cebee4-4100-4548-8c27-9780f68913c3",
-      "imu"
-    ],
-    [
-      "39f701b7-54f7-4d93-875f-501d10af9b57",
-      "haptic"
-    ],
-    [
-      "850bf0bc-2a4d-454f-b100-f2902529ee73",
-      "emg"
-    ],
-    [
-      "933edaa2-3247-4768-9b68-813542b56179",
-      "adc (DNP)"
+      "add6a4bd-bc27-405f-8e81-ca1c650b0c64",
+      "Root"
     ]
   ],
   "text_variables": {},
