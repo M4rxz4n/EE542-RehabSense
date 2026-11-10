@@ -2801,6 +2801,16 @@
 	)
 	(wire
 		(pts
+			(xy 55.88 20.32) (xy 55.88 21.59)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "13c74a27-f8e3-4289-bba1-0f7604e2cf22")
+	)
+	(wire
+		(pts
 			(xy 31.75 181.61) (xy 44.45 181.61)
 		)
 		(stroke
@@ -2831,7 +2841,7 @@
 	)
 	(wire
 		(pts
-			(xy 223.52 55.88) (xy 233.68 55.88)
+			(xy 223.52 55.88) (xy 228.6 55.88)
 		)
 		(stroke
 			(width 0)
@@ -2871,16 +2881,6 @@
 	)
 	(wire
 		(pts
-			(xy 53.34 110.49) (xy 53.34 113.03)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "1d9a9898-a389-40cf-abd6-af3d6d200b0c")
-	)
-	(wire
-		(pts
 			(xy 118.11 68.58) (xy 124.46 68.58)
 		)
 		(stroke
@@ -2911,7 +2911,7 @@
 	)
 	(wire
 		(pts
-			(xy 226.06 132.08) (xy 236.22 132.08)
+			(xy 226.06 132.08) (xy 231.14 132.08)
 		)
 		(stroke
 			(width 0)
@@ -3338,6 +3338,16 @@
 			(type default)
 		)
 		(uuid "667c913a-bf0b-486f-9d04-0bf36d80be53")
+	)
+	(wire
+		(pts
+			(xy 44.45 20.32) (xy 45.72 20.32)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "66fd2efb-3a2b-4247-b945-37cbed02a0a5")
 	)
 	(wire
 		(pts
@@ -3881,16 +3891,6 @@
 	)
 	(wire
 		(pts
-			(xy 55.88 19.05) (xy 55.88 21.59)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "bdcde057-4f44-4edb-859f-2c2b0fd0c18c")
-	)
-	(wire
-		(pts
 			(xy 118.11 157.48) (xy 118.11 165.1)
 		)
 		(stroke
@@ -3968,6 +3968,16 @@
 			(type default)
 		)
 		(uuid "c8d2c7a2-3672-4acc-b778-ddff54ba3bda")
+	)
+	(wire
+		(pts
+			(xy 41.91 111.76) (xy 43.18 111.76)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c971d0f2-3db2-4131-ab08-eac55d52874a")
 	)
 	(wire
 		(pts
@@ -4291,6 +4301,16 @@
 	)
 	(wire
 		(pts
+			(xy 53.34 111.76) (xy 53.34 113.03)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ff9cdb85-d6ac-4c32-8318-9bb1ab36af6d")
+	)
+	(wire
+		(pts
 			(xy 52.07 85.09) (xy 57.15 85.09)
 		)
 		(stroke
@@ -4328,26 +4348,6 @@
 			(justify left bottom)
 		)
 		(uuid "1bb8177b-103d-46e9-b2de-5988e7a855be")
-	)
-	(label "OUT1"
-		(at 229.87 55.88 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify bottom)
-		)
-		(uuid "2d7a71c8-dff5-4760-b237-bcfab9178b17")
-	)
-	(label "OUT2"
-		(at 232.41 132.08 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify bottom)
-		)
-		(uuid "339733fb-0237-4054-bb3e-325232f4037c")
 	)
 	(label "DRL1"
 		(at 187.96 30.48 90)
@@ -4675,6 +4675,30 @@
 			)
 		)
 	)
+	(global_label "ADC1"
+		(shape input)
+		(at 228.6 55.88 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "3ee79443-a095-4d7f-9b68-d631b4238a51")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 236.4233 55.88 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+	)
 	(global_label "DRL1"
 		(shape input)
 		(at 194.31 63.5 0)
@@ -4904,6 +4928,30 @@
 		(uuid "d7968c42-4f55-4ba1-955a-7cb7c7fd9603")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 202.0124 66.04 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+	)
+	(global_label "ADC2"
+		(shape input)
+		(at 231.14 132.08 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "ef3098aa-e406-47a2-a79d-7eabf17049b3")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 238.9633 132.08 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7455,6 +7503,87 @@
 		)
 	)
 	(symbol
+		(lib_id "Jumper:SolderJumper_2_Open")
+		(at 50.8 20.32 180)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "7a596306-e509-4a20-83d3-dd8d870cd4b8")
+		(property "Reference" "JP7"
+			(at 55.626 17.78 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "SolderJumper_2_Open"
+			(at 52.07 23.114 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm"
+			(at 50.8 20.32 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 50.8 12.7 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Solder Jumper, 2-pole, open"
+			(at 50.8 15.24 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "cd49de0d-2eed-4995-86b1-402749ee3cdb")
+		)
+		(pin "2"
+			(uuid "e965539f-63af-4837-ba13-6e0049aaeccc")
+		)
+		(instances
+			(project "rehabsense-main"
+				(path "/b751250a-7d43-475a-8447-686d399cd67b/850bf0bc-2a4d-454f-b100-f2902529ee73"
+					(reference "JP7")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "OPA4322AIPWR:OPA4322AIPWR")
 		(at 128.27 173.99 0)
 		(unit 3)
@@ -8315,7 +8444,7 @@
 	)
 	(symbol
 		(lib_id "power:+3V3")
-		(at 55.88 19.05 0)
+		(at 44.45 20.32 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -8325,7 +8454,7 @@
 		(dnp no)
 		(uuid "9d6cef34-fbb7-43bc-8a09-33b6a5c2a82a")
 		(property "Reference" "#PWR074"
-			(at 55.88 22.86 0)
+			(at 44.45 24.13 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8336,7 +8465,7 @@
 			)
 		)
 		(property "Value" "+3VA"
-			(at 53.086 14.986 0)
+			(at 41.656 16.256 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -8347,7 +8476,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 55.88 19.05 0)
+			(at 44.45 20.32 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8358,7 +8487,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 55.88 19.05 0)
+			(at 44.45 20.32 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8369,7 +8498,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"+3V3\""
-			(at 55.88 19.05 0)
+			(at 44.45 20.32 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9391,6 +9520,87 @@
 			(project "rehabsense-main"
 				(path "/b751250a-7d43-475a-8447-686d399cd67b/850bf0bc-2a4d-454f-b100-f2902529ee73"
 					(reference "C21")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Jumper:SolderJumper_2_Open")
+		(at 48.26 111.76 180)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "be363f9d-762b-4084-95ab-04d6a985fc25")
+		(property "Reference" "JP8"
+			(at 53.086 109.22 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "SolderJumper_2_Open"
+			(at 49.53 114.554 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm"
+			(at 48.26 111.76 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 48.26 104.14 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Solder Jumper, 2-pole, open"
+			(at 48.26 106.68 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "27f470bb-ec92-4707-968b-e625e4b295db")
+		)
+		(pin "2"
+			(uuid "9fa3fed5-c917-4dcc-9c6c-1507d9bd5cc9")
+		)
+		(instances
+			(project "rehabsense-main"
+				(path "/b751250a-7d43-475a-8447-686d399cd67b/850bf0bc-2a4d-454f-b100-f2902529ee73"
+					(reference "JP8")
 					(unit 1)
 				)
 			)
@@ -10596,7 +10806,7 @@
 	)
 	(symbol
 		(lib_id "power:+3V3")
-		(at 53.34 110.49 0)
+		(at 41.91 111.76 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -10606,7 +10816,7 @@
 		(dnp no)
 		(uuid "e392f77a-ffe4-42e6-b346-7e9a982d7483")
 		(property "Reference" "#PWR073"
-			(at 53.34 114.3 0)
+			(at 41.91 115.57 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10617,7 +10827,7 @@
 			)
 		)
 		(property "Value" "+3VA"
-			(at 50.546 106.426 0)
+			(at 39.116 107.696 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -10628,7 +10838,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 53.34 110.49 0)
+			(at 41.91 111.76 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10639,7 +10849,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 53.34 110.49 0)
+			(at 41.91 111.76 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10650,7 +10860,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"+3V3\""
-			(at 53.34 110.49 0)
+			(at 41.91 111.76 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)

@@ -680,268 +680,6 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "Jumper:SolderJumper_3_Open"
-			(pin_names
-				(offset 0)
-				(hide yes)
-			)
-			(exclude_from_sim no)
-			(in_bom no)
-			(on_board yes)
-			(in_pos_files yes)
-			(duplicate_pin_numbers_are_jumpers no)
-			(property "Reference" "JP"
-				(at -2.54 -2.54 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Value" "SolderJumper_3_Open"
-				(at 0 2.794 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Footprint" ""
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Datasheet" ""
-				(at 0 -15.24 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Description" "Solder Jumper, 3-pole, open"
-				(at 0 -12.7 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property private "KLC_S5.1" "This is a generic symbol, it has fp-filter, but no default footprint"
-				(at 0 -17.78 0)
-				(show_name yes)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property private "KLC_S3.3" "Graphical-Symbol: thickness is 6mm, fill is background"
-				(at 0 -20.32 0)
-				(show_name yes)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "ki_keywords" "Solder Jumper SPDT"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "ki_fp_filters" "SolderJumper*Open*"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(symbol "SolderJumper_3_Open_0_1"
-				(polyline
-					(pts
-						(xy -2.54 0) (xy -2.032 0)
-					)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy -1.016 1.016) (xy -1.016 -1.016)
-					)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(arc
-					(start -1.016 -1.016)
-					(mid -2.0276 0)
-					(end -1.016 1.016)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type outline)
-					)
-				)
-				(rectangle
-					(start -0.508 1.016)
-					(end 0.508 -1.016)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type outline)
-					)
-				)
-				(polyline
-					(pts
-						(xy 0 -1.27) (xy 0 -1.016)
-					)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(arc
-					(start 1.016 1.016)
-					(mid 2.0276 0)
-					(end 1.016 -1.016)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type outline)
-					)
-				)
-				(polyline
-					(pts
-						(xy 1.016 1.016) (xy 1.016 -1.016)
-					)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy 2.54 0) (xy 2.032 0)
-					)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-			)
-			(symbol "SolderJumper_3_Open_1_1"
-				(pin passive line
-					(at -5.08 0 0)
-					(length 2.54)
-					(name "A"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "1"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at 0 -3.81 90)
-					(length 2.54)
-					(name "C"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "2"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at 5.08 0 180)
-					(length 2.54)
-					(name "B"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "3"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-			)
-			(embedded_fonts no)
-		)
 		(symbol "power:+3V3"
 			(power global)
 			(pin_numbers
@@ -1269,16 +1007,6 @@
 	)
 	(wire
 		(pts
-			(xy 45.72 82.55) (xy 45.72 83.82)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "08fb81ec-b482-47be-a3a5-34f71857fd23")
-	)
-	(wire
-		(pts
 			(xy 243.84 72.39) (xy 243.84 73.66)
 		)
 		(stroke
@@ -1286,26 +1014,6 @@
 			(type default)
 		)
 		(uuid "10a53a9d-65c8-4990-86f7-9b66a54759b3")
-	)
-	(wire
-		(pts
-			(xy 49.53 86.36) (xy 49.53 77.47)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "11bb843e-c3ae-4e79-98c0-9f107341ff90")
-	)
-	(wire
-		(pts
-			(xy 175.26 83.82) (xy 175.26 85.09)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "12a43640-01c5-4dad-a3f0-74280985fc16")
 	)
 	(wire
 		(pts
@@ -1339,23 +1047,13 @@
 	)
 	(wire
 		(pts
-			(xy 163.83 133.35) (xy 175.26 133.35)
+			(xy 186.69 102.87) (xy 198.12 102.87)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
 		(uuid "19160653-e219-459d-9238-5ad5cd8fe34a")
-	)
-	(wire
-		(pts
-			(xy 179.07 90.17) (xy 205.74 90.17)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "194ffb7a-c0f6-46b1-bdfb-6e1d4673ca0c")
 	)
 	(wire
 		(pts
@@ -1389,13 +1087,13 @@
 	)
 	(wire
 		(pts
-			(xy 45.72 102.87) (xy 45.72 104.14)
+			(xy 198.12 90.17) (xy 205.74 90.17)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "27b496d0-7636-483b-8a70-b46e4eeee4ee")
+		(uuid "32c0f9fa-5a78-49a9-84de-822d2f6694ca")
 	)
 	(wire
 		(pts
@@ -1409,16 +1107,6 @@
 	)
 	(wire
 		(pts
-			(xy 53.34 116.84) (xy 49.53 116.84)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "34b70524-ea98-45e3-85c0-2aa455ff2383")
-	)
-	(wire
-		(pts
 			(xy 238.76 107.95) (xy 238.76 109.22)
 		)
 		(stroke
@@ -1426,16 +1114,6 @@
 			(type default)
 		)
 		(uuid "3f1307eb-0c41-43d5-8bcb-cc1ac6b0c62d")
-	)
-	(wire
-		(pts
-			(xy 49.53 88.9) (xy 76.2 88.9)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "434bbdf7-4fd6-4d3e-aa38-f6dda60345f5")
 	)
 	(wire
 		(pts
@@ -1449,23 +1127,13 @@
 	)
 	(wire
 		(pts
-			(xy 66.04 81.28) (xy 76.2 81.28)
+			(xy 69.85 91.44) (xy 76.2 91.44)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "4d868c54-028b-4ddb-a2e4-ba078df71a18")
-	)
-	(wire
-		(pts
-			(xy 175.26 111.76) (xy 175.26 113.03)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "50e0b701-4475-4b15-87da-50dc1ae3aea9")
+		(uuid "513ea345-d1ab-4233-ab5b-686a598613c4")
 	)
 	(wire
 		(pts
@@ -1489,26 +1157,6 @@
 	)
 	(wire
 		(pts
-			(xy 76.2 91.44) (xy 53.34 91.44)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "584c57f8-9097-49fd-a22b-95077e0d6b12")
-	)
-	(wire
-		(pts
-			(xy 179.07 90.17) (xy 179.07 99.06)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "5f520b2b-0477-4e77-ab9e-3dfa5b3cc696")
-	)
-	(wire
-		(pts
 			(xy 243.84 82.55) (xy 243.84 81.28)
 		)
 		(stroke
@@ -1519,43 +1167,13 @@
 	)
 	(wire
 		(pts
-			(xy 45.72 123.19) (xy 45.72 121.92)
+			(xy 69.85 92.71) (xy 69.85 91.44)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
 		(uuid "63406e6b-d759-4c6f-b1ff-fe917b61aa4f")
-	)
-	(wire
-		(pts
-			(xy 182.88 92.71) (xy 205.74 92.71)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "63f37df8-75f7-4084-b5a9-5702aa35902b")
-	)
-	(wire
-		(pts
-			(xy 175.26 92.71) (xy 175.26 93.98)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "66251aa4-73b8-4e0d-a73d-b9da7be8efc6")
-	)
-	(wire
-		(pts
-			(xy 53.34 91.44) (xy 53.34 116.84)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "6829b23c-deb4-469f-84df-f44ae00a8a0e")
 	)
 	(wire
 		(pts
@@ -1569,43 +1187,13 @@
 	)
 	(wire
 		(pts
-			(xy 45.72 71.12) (xy 45.72 72.39)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "70d44c37-5627-4269-9629-d1c7f9de5f95")
-	)
-	(wire
-		(pts
-			(xy 175.26 104.14) (xy 175.26 105.41)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "77efb490-4ac4-41bb-9acd-df6de3d050fc")
-	)
-	(wire
-		(pts
-			(xy 163.83 133.35) (xy 163.83 132.08)
+			(xy 186.69 102.87) (xy 186.69 101.6)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
 		(uuid "782730cb-ad1a-4002-a02b-852cc7cd8b3c")
-	)
-	(wire
-		(pts
-			(xy 175.26 72.39) (xy 175.26 73.66)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "7cf9a711-68b1-4b14-b9df-692e5920d1f8")
 	)
 	(wire
 		(pts
@@ -1639,26 +1227,6 @@
 	)
 	(wire
 		(pts
-			(xy 182.88 92.71) (xy 182.88 118.11)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "91132ce0-7c9f-49b5-8e43-babb7f90167c")
-	)
-	(wire
-		(pts
-			(xy 49.53 88.9) (xy 49.53 97.79)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "9233fc7b-4eb0-45cd-b60a-2a4add022e51")
-	)
-	(wire
-		(pts
 			(xy 128.27 81.28) (xy 114.3 81.28)
 		)
 		(stroke
@@ -1679,6 +1247,16 @@
 	)
 	(wire
 		(pts
+			(xy 69.85 86.36) (xy 76.2 86.36)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9951723e-93dc-41dc-911d-4f1a1d115a47")
+	)
+	(wire
+		(pts
 			(xy 109.22 106.68) (xy 109.22 107.95)
 		)
 		(stroke
@@ -1689,7 +1267,7 @@
 	)
 	(wire
 		(pts
-			(xy 175.26 124.46) (xy 175.26 123.19)
+			(xy 198.12 93.98) (xy 198.12 92.71)
 		)
 		(stroke
 			(width 0)
@@ -1699,7 +1277,17 @@
 	)
 	(wire
 		(pts
-			(xy 45.72 130.81) (xy 45.72 132.08)
+			(xy 198.12 92.71) (xy 205.74 92.71)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9f9a3bec-0a6a-4a73-b11c-082121a0f5db")
+	)
+	(wire
+		(pts
+			(xy 69.85 100.33) (xy 69.85 101.6)
 		)
 		(stroke
 			(width 0)
@@ -1719,53 +1307,23 @@
 	)
 	(wire
 		(pts
-			(xy 182.88 118.11) (xy 179.07 118.11)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "b439c273-82cb-4cfd-96c3-d1b9b3994c64")
-	)
-	(wire
-		(pts
-			(xy 49.53 86.36) (xy 76.2 86.36)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "b8407e77-9622-4034-8e2d-3c0b65c5e11a")
-	)
-	(wire
-		(pts
-			(xy 179.07 87.63) (xy 179.07 78.74)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "bb8a9f0d-c3ae-44b9-ae0f-88a5c48fe1d7")
-	)
-	(wire
-		(pts
-			(xy 45.72 110.49) (xy 45.72 111.76)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "beff35ec-af9f-47ab-ad2c-6942c3dd7356")
-	)
-	(wire
-		(pts
-			(xy 179.07 87.63) (xy 205.74 87.63)
+			(xy 198.12 87.63) (xy 205.74 87.63)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
 		(uuid "bf9d10ba-e3f1-43e7-b3c4-55cdd8b08781")
+	)
+	(wire
+		(pts
+			(xy 69.85 88.9) (xy 76.2 88.9)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c17c9e76-1fb8-4b37-b104-3abfdf1269ae")
 	)
 	(wire
 		(pts
@@ -1799,7 +1357,7 @@
 	)
 	(wire
 		(pts
-			(xy 175.26 133.35) (xy 175.26 132.08)
+			(xy 198.12 102.87) (xy 198.12 101.6)
 		)
 		(stroke
 			(width 0)
@@ -1879,16 +1437,6 @@
 	)
 	(wire
 		(pts
-			(xy 195.58 82.55) (xy 205.74 82.55)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "ead6dcda-6cbd-4d22-90ef-e35171a557b5")
-	)
-	(wire
-		(pts
 			(xy 240.03 72.39) (xy 243.84 72.39)
 		)
 		(stroke
@@ -1897,19 +1445,9 @@
 		)
 		(uuid "efa8cf3e-4882-422c-b642-1cdcac7e532f")
 	)
-	(wire
-		(pts
-			(xy 45.72 91.44) (xy 45.72 92.71)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "efec4fce-b2df-4950-b1bb-a9b5017e7962")
-	)
 	(global_label "SDA"
 		(shape input)
-		(at 175.26 105.41 180)
+		(at 198.12 90.17 180)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -1919,7 +1457,7 @@
 		)
 		(uuid "257af056-dacc-45ea-846f-18af28d5df61")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 168.7067 105.41 0)
+			(at 191.5667 90.17 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1933,7 +1471,7 @@
 	)
 	(global_label "SCL"
 		(shape input)
-		(at 45.72 83.82 180)
+		(at 69.85 86.36 180)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -1943,31 +1481,7 @@
 		)
 		(uuid "2b39f89b-2986-4275-9eae-035378fdef35")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 39.2272 83.82 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-	)
-	(global_label "CS_IMU1"
-		(shape input)
-		(at 66.04 81.28 180)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "3490b70d-2937-44fb-b1f3-3ed116a96ac7")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 55.0115 81.28 0)
+			(at 63.3572 86.36 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1981,7 +1495,7 @@
 	)
 	(global_label "SDA"
 		(shape input)
-		(at 45.72 104.14 180)
+		(at 69.85 88.9 180)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -1991,175 +1505,7 @@
 		)
 		(uuid "36fd0f89-eba7-45a0-b1ad-457c723a67cb")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 39.1667 104.14 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-	)
-	(global_label "SCK"
-		(shape input)
-		(at 45.72 71.12 180)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "62e6b21f-fa62-40fb-8fb1-d6fd5ce84f0e")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 38.9853 71.12 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-	)
-	(global_label "MOSI"
-		(shape input)
-		(at 45.72 91.44 180)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "8274185c-9092-49cd-89c4-0f4b79191314")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 38.1386 91.44 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-	)
-	(global_label "MISO"
-		(shape input)
-		(at 45.72 110.49 180)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "8ce0265f-beda-44a9-876e-d15946370461")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 38.1386 110.49 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-	)
-	(global_label "CS_IMU2"
-		(shape input)
-		(at 195.58 82.55 180)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "8d393613-9190-4273-80cf-3de0b89a91ad")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 184.5515 82.55 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-	)
-	(global_label "MISO"
-		(shape input)
-		(at 175.26 111.76 180)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "bffdc3b7-855a-40ec-be18-a027cbebb7d1")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 167.6786 111.76 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-	)
-	(global_label "MOSI"
-		(shape input)
-		(at 175.26 92.71 180)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "d7838d5e-0ea7-439d-9828-b931de414aaf")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 167.6786 92.71 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-	)
-	(global_label "SCK"
-		(shape input)
-		(at 175.26 72.39 180)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "dcc982fb-4725-40e9-91dd-95b273ab7f3c")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 168.5253 72.39 0)
+			(at 63.2967 88.9 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2173,7 +1519,7 @@
 	)
 	(global_label "SCL"
 		(shape input)
-		(at 175.26 85.09 180)
+		(at 198.12 87.63 180)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -2183,7 +1529,7 @@
 		)
 		(uuid "f93ae4b7-0528-4723-baef-8cd9fc723be1")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 168.7672 85.09 0)
+			(at 191.6272 87.63 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2192,220 +1538,6 @@
 					(size 1.27 1.27)
 				)
 				(justify right)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Jumper:SolderJumper_3_Open")
-		(at 45.72 97.79 90)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom no)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "10353b1b-e769-4b34-bc8f-deb54bd62820")
-		(property "Reference" "JP8"
-			(at 43.18 96.5199 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "SolderJumper_3_Open"
-			(at 43.18 99.0599 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Jumper:SolderJumper-3_P1.3mm_Open_RoundedPad1.0x1.5mm"
-			(at 45.72 97.79 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 60.96 97.79 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Solder Jumper, 3-pole, open"
-			(at 58.42 97.79 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property private "KLC_S5.1" "This is a generic symbol, it has fp-filter, but no default footprint"
-			(at 63.5 97.79 0)
-			(hide yes)
-			(show_name yes)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property private "KLC_S3.3" "Graphical-Symbol: thickness is 6mm, fill is background"
-			(at 66.04 97.79 0)
-			(hide yes)
-			(show_name yes)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "ec701930-4a81-485b-b1a4-9afaa4e39ffb")
-		)
-		(pin "2"
-			(uuid "9826ee6f-080d-440e-ba6e-8dd666292bbe")
-		)
-		(pin "3"
-			(uuid "b58d1b9c-6757-401c-9018-3a03e9e4dbc2")
-		)
-		(instances
-			(project "rehabsense-main"
-				(path "/b751250a-7d43-475a-8447-686d399cd67b/87cebee4-4100-4548-8c27-9780f68913c3"
-					(reference "JP8")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Jumper:SolderJumper_3_Open")
-		(at 175.26 78.74 90)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom no)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "14f67f1a-2a0d-44bf-b31b-2303ad3f6c1d")
-		(property "Reference" "JP10"
-			(at 172.72 77.4699 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "SolderJumper_3_Open"
-			(at 172.72 80.0099 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Jumper:SolderJumper-3_P1.3mm_Open_RoundedPad1.0x1.5mm"
-			(at 175.26 78.74 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 190.5 78.74 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Solder Jumper, 3-pole, open"
-			(at 187.96 78.74 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property private "KLC_S5.1" "This is a generic symbol, it has fp-filter, but no default footprint"
-			(at 193.04 78.74 0)
-			(hide yes)
-			(show_name yes)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property private "KLC_S3.3" "Graphical-Symbol: thickness is 6mm, fill is background"
-			(at 195.58 78.74 0)
-			(hide yes)
-			(show_name yes)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "9bafaf72-c099-4910-83b4-200896cb8ec4")
-		)
-		(pin "2"
-			(uuid "5fe9f079-b222-4aa5-96b4-f9596b0fe97d")
-		)
-		(pin "3"
-			(uuid "6633021b-629e-430e-a40a-fac22891c526")
-		)
-		(instances
-			(project "rehabsense-main"
-				(path "/b751250a-7d43-475a-8447-686d399cd67b/87cebee4-4100-4548-8c27-9780f68913c3"
-					(reference "JP10")
-					(unit 1)
-				)
 			)
 		)
 	)
@@ -2488,115 +1620,8 @@
 		)
 	)
 	(symbol
-		(lib_id "Jumper:SolderJumper_3_Open")
-		(at 175.26 118.11 90)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom no)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "3b331954-8334-4f2f-b954-384b54ff3111")
-		(property "Reference" "JP12"
-			(at 172.72 116.8399 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "SolderJumper_3_Open"
-			(at 172.72 119.3799 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Jumper:SolderJumper-3_P1.3mm_Open_RoundedPad1.0x1.5mm"
-			(at 175.26 118.11 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 190.5 118.11 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Solder Jumper, 3-pole, open"
-			(at 187.96 118.11 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property private "KLC_S5.1" "This is a generic symbol, it has fp-filter, but no default footprint"
-			(at 193.04 118.11 0)
-			(hide yes)
-			(show_name yes)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property private "KLC_S3.3" "Graphical-Symbol: thickness is 6mm, fill is background"
-			(at 195.58 118.11 0)
-			(hide yes)
-			(show_name yes)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "4c7ea169-823f-419d-8a49-381537a1b15b")
-		)
-		(pin "2"
-			(uuid "530ad73e-7171-4cb9-bd12-f644eb8ca869")
-		)
-		(pin "3"
-			(uuid "19c3a285-af25-4b22-a1d2-e4d2925c4f33")
-		)
-		(instances
-			(project "rehabsense-main"
-				(path "/b751250a-7d43-475a-8447-686d399cd67b/87cebee4-4100-4548-8c27-9780f68913c3"
-					(reference "JP12")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "power:+3V3")
-		(at 163.83 132.08 0)
+		(at 186.69 101.6 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -2606,7 +1631,7 @@
 		(dnp no)
 		(uuid "539f41aa-f1e9-45cb-850b-e79cf4ffda8f")
 		(property "Reference" "#PWR090"
-			(at 163.83 135.89 0)
+			(at 186.69 105.41 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2617,7 +1642,7 @@
 			)
 		)
 		(property "Value" "+3V3D"
-			(at 161.036 128.016 0)
+			(at 183.896 97.536 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -2628,7 +1653,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 163.83 132.08 0)
+			(at 186.69 101.6 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2639,7 +1664,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 163.83 132.08 0)
+			(at 186.69 101.6 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2650,7 +1675,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"+3V3\""
-			(at 163.83 132.08 0)
+			(at 186.69 101.6 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2745,113 +1770,6 @@
 			(project "rehabsense-main"
 				(path "/b751250a-7d43-475a-8447-686d399cd67b/87cebee4-4100-4548-8c27-9780f68913c3"
 					(reference "#PWR089")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Jumper:SolderJumper_3_Open")
-		(at 45.72 77.47 90)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom no)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "568ddd7f-60c5-46f5-93c2-de8e39c64939")
-		(property "Reference" "JP9"
-			(at 43.18 76.1999 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "SolderJumper_3_Open"
-			(at 43.18 78.7399 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Jumper:SolderJumper-3_P1.3mm_Open_RoundedPad1.0x1.5mm"
-			(at 45.72 77.47 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 60.96 77.47 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Solder Jumper, 3-pole, open"
-			(at 58.42 77.47 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property private "KLC_S5.1" "This is a generic symbol, it has fp-filter, but no default footprint"
-			(at 63.5 77.47 0)
-			(hide yes)
-			(show_name yes)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property private "KLC_S3.3" "Graphical-Symbol: thickness is 6mm, fill is background"
-			(at 66.04 77.47 0)
-			(hide yes)
-			(show_name yes)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "2092d5c1-c479-4e41-86bd-6c04259f3105")
-		)
-		(pin "2"
-			(uuid "f8fd348f-a959-4d1a-82a8-d14c1f371a46")
-		)
-		(pin "3"
-			(uuid "ee8fd249-4f79-45a2-b1bc-5129d24e8746")
-		)
-		(instances
-			(project "rehabsense-main"
-				(path "/b751250a-7d43-475a-8447-686d399cd67b/87cebee4-4100-4548-8c27-9780f68913c3"
-					(reference "JP9")
 					(unit 1)
 				)
 			)
@@ -3015,7 +1933,7 @@
 	)
 	(symbol
 		(lib_id "Device:R")
-		(at 45.72 127 0)
+		(at 69.85 96.52 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -3025,7 +1943,7 @@
 		(dnp no)
 		(uuid "6e646e9f-c89f-4deb-906f-11e254558ef4")
 		(property "Reference" "R1"
-			(at 41.656 125.73 0)
+			(at 65.786 95.25 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -3036,7 +1954,7 @@
 			)
 		)
 		(property "Value" "100k"
-			(at 39.37 128.016 0)
+			(at 63.5 97.536 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -3047,7 +1965,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
-			(at 43.942 127 90)
+			(at 68.072 96.52 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3058,7 +1976,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 45.72 127 0)
+			(at 69.85 96.52 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3069,7 +1987,7 @@
 			)
 		)
 		(property "Description" "Resistor"
-			(at 45.72 127 0)
+			(at 69.85 96.52 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3420,7 +2338,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 45.72 132.08 0)
+		(at 69.85 101.6 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -3431,7 +2349,7 @@
 		(fields_autoplaced yes)
 		(uuid "c823d72d-70da-493c-b499-96d9f8cede22")
 		(property "Reference" "#PWR04"
-			(at 45.72 138.43 0)
+			(at 69.85 107.95 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3442,7 +2360,7 @@
 			)
 		)
 		(property "Value" "DGND"
-			(at 45.72 137.16 0)
+			(at 69.85 106.68 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -3452,7 +2370,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 45.72 132.08 0)
+			(at 69.85 101.6 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3463,7 +2381,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 45.72 132.08 0)
+			(at 69.85 101.6 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3474,7 +2392,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 45.72 132.08 0)
+			(at 69.85 101.6 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3497,115 +2415,8 @@
 		)
 	)
 	(symbol
-		(lib_id "Jumper:SolderJumper_3_Open")
-		(at 45.72 116.84 90)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom no)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "ce7b09b1-d2ec-4f1b-94ae-a92a7cd1e48a")
-		(property "Reference" "JP7"
-			(at 43.18 115.5699 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "SolderJumper_3_Open"
-			(at 43.18 118.1099 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Jumper:SolderJumper-3_P1.3mm_Open_RoundedPad1.0x1.5mm"
-			(at 45.72 116.84 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 60.96 116.84 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Solder Jumper, 3-pole, open"
-			(at 58.42 116.84 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property private "KLC_S5.1" "This is a generic symbol, it has fp-filter, but no default footprint"
-			(at 63.5 116.84 0)
-			(hide yes)
-			(show_name yes)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property private "KLC_S3.3" "Graphical-Symbol: thickness is 6mm, fill is background"
-			(at 66.04 116.84 0)
-			(hide yes)
-			(show_name yes)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "f207be9e-2a44-4b49-b6b0-015c464a6a22")
-		)
-		(pin "2"
-			(uuid "7ab9621f-a3ef-45e3-9f68-c56ed48ced06")
-		)
-		(pin "3"
-			(uuid "9a4b5e8a-a01c-4718-8bff-7c1a3b839eb0")
-		)
-		(instances
-			(project "rehabsense-main"
-				(path "/b751250a-7d43-475a-8447-686d399cd67b/87cebee4-4100-4548-8c27-9780f68913c3"
-					(reference "JP7")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "Device:R")
-		(at 175.26 128.27 0)
+		(at 198.12 97.79 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -3615,7 +2426,7 @@
 		(dnp no)
 		(uuid "d25aad05-4ac1-4e14-83b9-4be5eeb91515")
 		(property "Reference" "R2"
-			(at 176.784 127.508 0)
+			(at 199.644 97.028 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -3626,7 +2437,7 @@
 			)
 		)
 		(property "Value" "100k"
-			(at 176.784 129.54 0)
+			(at 199.644 99.06 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -3637,7 +2448,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
-			(at 173.482 128.27 90)
+			(at 196.342 97.79 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3648,7 +2459,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 175.26 128.27 0)
+			(at 198.12 97.79 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3659,7 +2470,7 @@
 			)
 		)
 		(property "Description" "Resistor"
-			(at 175.26 128.27 0)
+			(at 198.12 97.79 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3679,113 +2490,6 @@
 			(project "rehabsense-main"
 				(path "/b751250a-7d43-475a-8447-686d399cd67b/87cebee4-4100-4548-8c27-9780f68913c3"
 					(reference "R2")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Jumper:SolderJumper_3_Open")
-		(at 175.26 99.06 90)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom no)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "d80104b1-4af4-4a04-81f4-6a6482fcffa6")
-		(property "Reference" "JP11"
-			(at 172.72 97.7899 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "SolderJumper_3_Open"
-			(at 172.72 100.3299 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Jumper:SolderJumper-3_P1.3mm_Open_RoundedPad1.0x1.5mm"
-			(at 175.26 99.06 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 190.5 99.06 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Solder Jumper, 3-pole, open"
-			(at 187.96 99.06 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property private "KLC_S5.1" "This is a generic symbol, it has fp-filter, but no default footprint"
-			(at 193.04 99.06 0)
-			(hide yes)
-			(show_name yes)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property private "KLC_S3.3" "Graphical-Symbol: thickness is 6mm, fill is background"
-			(at 195.58 99.06 0)
-			(hide yes)
-			(show_name yes)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "57a63ca1-da60-4228-98e7-c31745d378d2")
-		)
-		(pin "2"
-			(uuid "f52e9638-0d5b-4fd6-af52-546709f34638")
-		)
-		(pin "3"
-			(uuid "6a041028-d4e6-4415-a8b0-5623789b13d9")
-		)
-		(instances
-			(project "rehabsense-main"
-				(path "/b751250a-7d43-475a-8447-686d399cd67b/87cebee4-4100-4548-8c27-9780f68913c3"
-					(reference "JP11")
 					(unit 1)
 				)
 			)
