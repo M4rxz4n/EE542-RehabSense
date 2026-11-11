@@ -1522,6 +1522,16 @@
 	)
 	(wire
 		(pts
+			(xy 149.86 83.82) (xy 156.21 83.82)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "7d790880-d0e2-43de-9782-569427c647ab")
+	)
+	(wire
+		(pts
 			(xy 78.74 71.12) (xy 78.74 69.85)
 		)
 		(stroke
@@ -1612,16 +1622,6 @@
 	)
 	(wire
 		(pts
-			(xy 102.87 78.74) (xy 109.22 78.74)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "c4fc9cf1-abed-4d9e-b0a2-2c2dc00a852b")
-	)
-	(wire
-		(pts
 			(xy 71.12 83.82) (xy 88.9 83.82)
 		)
 		(stroke
@@ -1680,30 +1680,6 @@
 		)
 		(uuid "fd98be8f-b62a-44fe-98b4-4d1309834614")
 	)
-	(global_label "ADC2"
-		(shape input)
-		(at 102.87 78.74 180)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "09d38c98-03da-431a-b215-897dbd915305")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 95.0467 78.74 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-	)
 	(global_label "SDA1"
 		(shape input)
 		(at 125.73 119.38 0)
@@ -1749,6 +1725,30 @@
 					(size 1.27 1.27)
 				)
 				(justify right)
+			)
+		)
+	)
+	(global_label "ADC2"
+		(shape input)
+		(at 156.21 83.82 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "6fe48ff2-79d3-4270-82e1-001f200cba9c")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 164.0333 83.82 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
 			)
 		)
 	)
