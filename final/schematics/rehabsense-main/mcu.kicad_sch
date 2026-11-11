@@ -1353,10 +1353,22 @@
 		(uuid "0fccd8df-bbb5-460a-b5b8-cb14a2b1b410")
 	)
 	(junction
+		(at 168.91 63.5)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "22a5e4a1-5cf3-4f4c-b944-d9900e4311f6")
+	)
+	(junction
 		(at 87.63 81.28)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "2f925704-c932-4464-8576-85d2dd13e53d")
+	)
+	(junction
+		(at 158.75 63.5)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "7eeebe7a-b992-4027-be3c-7bb48827f4c2")
 	)
 	(junction
 		(at 88.9 83.82)
@@ -1365,10 +1377,16 @@
 		(uuid "8915778f-09b7-4053-9c5b-3bcf7a09a4b3")
 	)
 	(junction
-		(at 153.67 63.5)
+		(at 167.64 81.28)
 		(diameter 0)
 		(color 0 0 0 0)
-		(uuid "ed56bef9-4034-4923-9711-7f3baed1f3f4")
+		(uuid "a507d3f0-a84a-4de2-863b-e744c54a7345")
+	)
+	(junction
+		(at 154.94 78.74)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "ce336510-54cb-4924-ba3d-8c2f919ee1db")
 	)
 	(wire
 		(pts
@@ -1432,7 +1450,17 @@
 	)
 	(wire
 		(pts
-			(xy 153.67 63.5) (xy 153.67 66.04)
+			(xy 167.64 81.28) (xy 168.91 81.28)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2fc7fcaf-f056-4f19-86b4-2c520095637b")
+	)
+	(wire
+		(pts
+			(xy 158.75 63.5) (xy 158.75 66.04)
 		)
 		(stroke
 			(width 0)
@@ -1452,7 +1480,7 @@
 	)
 	(wire
 		(pts
-			(xy 153.67 63.5) (xy 149.86 63.5)
+			(xy 149.86 63.5) (xy 168.91 63.5)
 		)
 		(stroke
 			(width 0)
@@ -1462,23 +1490,13 @@
 	)
 	(wire
 		(pts
-			(xy 149.86 81.28) (xy 161.29 81.28)
+			(xy 149.86 81.28) (xy 167.64 81.28)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
 		(uuid "3a9efbbd-bcf0-43da-84ee-8ed18e70b58e")
-	)
-	(wire
-		(pts
-			(xy 161.29 63.5) (xy 153.67 63.5)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "48955534-7b1d-4841-9f5d-afe7d8bab84e")
 	)
 	(wire
 		(pts
@@ -1562,7 +1580,7 @@
 	)
 	(wire
 		(pts
-			(xy 149.86 78.74) (xy 153.67 78.74)
+			(xy 149.86 78.74) (xy 154.94 78.74)
 		)
 		(stroke
 			(width 0)
@@ -1572,7 +1590,7 @@
 	)
 	(wire
 		(pts
-			(xy 161.29 66.04) (xy 161.29 63.5)
+			(xy 168.91 66.04) (xy 168.91 63.5)
 		)
 		(stroke
 			(width 0)
@@ -1592,7 +1610,7 @@
 	)
 	(wire
 		(pts
-			(xy 161.29 81.28) (xy 161.29 73.66)
+			(xy 168.91 73.66) (xy 168.91 81.28)
 		)
 		(stroke
 			(width 0)
@@ -1602,7 +1620,7 @@
 	)
 	(wire
 		(pts
-			(xy 153.67 78.74) (xy 153.67 73.66)
+			(xy 158.75 73.66) (xy 158.75 78.74)
 		)
 		(stroke
 			(width 0)
@@ -1612,7 +1630,7 @@
 	)
 	(wire
 		(pts
-			(xy 153.67 60.96) (xy 153.67 63.5)
+			(xy 168.91 60.96) (xy 168.91 63.5)
 		)
 		(stroke
 			(width 0)
@@ -1629,6 +1647,16 @@
 			(type default)
 		)
 		(uuid "c79c23d5-694c-4eb6-abe7-193f59086683")
+	)
+	(wire
+		(pts
+			(xy 154.94 78.74) (xy 158.75 78.74)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c83b2853-7260-4371-b1d3-3b588edfa96f")
 	)
 	(wire
 		(pts
@@ -1778,7 +1806,7 @@
 	)
 	(global_label "SDA1"
 		(shape input)
-		(at 153.67 78.74 0)
+		(at 158.75 78.74 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -1788,7 +1816,7 @@
 		)
 		(uuid "939d011b-4a9f-49b9-ac91-1130d449f7c8")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 161.4328 78.74 0)
+			(at 166.5128 78.74 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -1826,7 +1854,7 @@
 	)
 	(global_label "SCL1"
 		(shape input)
-		(at 161.29 81.28 0)
+		(at 168.91 81.28 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -1836,7 +1864,7 @@
 		)
 		(uuid "c88d8bdd-71a1-4be4-b30e-60ce3b3cac5f")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 168.9923 81.28 0)
+			(at 176.6123 81.28 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2029,7 +2057,7 @@
 	)
 	(symbol
 		(lib_id "power:+3V3")
-		(at 153.67 60.96 0)
+		(at 168.91 60.96 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -2039,7 +2067,7 @@
 		(dnp no)
 		(uuid "2ef65c8b-f8dd-496d-8547-48152d4c93a6")
 		(property "Reference" "#PWR026"
-			(at 153.67 64.77 0)
+			(at 168.91 64.77 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2050,7 +2078,7 @@
 			)
 		)
 		(property "Value" "+3V3D"
-			(at 150.876 56.896 0)
+			(at 166.116 56.896 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -2061,7 +2089,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 153.67 60.96 0)
+			(at 168.91 60.96 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2072,7 +2100,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 153.67 60.96 0)
+			(at 168.91 60.96 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2083,7 +2111,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"+3V3\""
-			(at 153.67 60.96 0)
+			(at 168.91 60.96 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2100,6 +2128,85 @@
 			(project "rehabsense-main"
 				(path "/b751250a-7d43-475a-8447-686d399cd67b/4c292b8e-bacf-4862-ad93-06ae5fddd327"
 					(reference "#PWR026")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Connector:TestPoint")
+		(at 154.94 78.74 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "2f866e56-05cd-4ac7-8352-03b2d55e9899")
+		(property "Reference" "TP10"
+			(at 150.622 74.168 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "TestPoint"
+			(at 157.48 76.7079 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Connector_Pin:Pin_D1.0mm_L10.0mm_LooseFit"
+			(at 160.02 78.74 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 160.02 78.74 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "test point"
+			(at 154.94 78.74 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "04c78be4-c87b-493c-8460-78350c4410bf")
+		)
+		(instances
+			(project "rehabsense-main"
+				(path "/b751250a-7d43-475a-8447-686d399cd67b/4c292b8e-bacf-4862-ad93-06ae5fddd327"
+					(reference "TP10")
 					(unit 1)
 				)
 			)
@@ -2571,7 +2678,7 @@
 	)
 	(symbol
 		(lib_id "Device:R")
-		(at 161.29 69.85 0)
+		(at 168.91 69.85 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -2581,7 +2688,7 @@
 		(dnp no)
 		(uuid "6ffd162e-1212-4e52-8c34-b32e503114eb")
 		(property "Reference" "R10"
-			(at 163.068 68.58 0)
+			(at 170.688 68.58 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -2592,7 +2699,7 @@
 			)
 		)
 		(property "Value" "2.2k"
-			(at 161.29 71.882 90)
+			(at 168.91 71.882 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -2603,7 +2710,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
-			(at 159.512 69.85 90)
+			(at 167.132 69.85 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2614,7 +2721,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 161.29 69.85 0)
+			(at 168.91 69.85 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2625,7 +2732,7 @@
 			)
 		)
 		(property "Description" "Resistor"
-			(at 161.29 69.85 0)
+			(at 168.91 69.85 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2954,7 +3061,7 @@
 	)
 	(symbol
 		(lib_id "Device:R")
-		(at 153.67 69.85 0)
+		(at 158.75 69.85 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -2964,7 +3071,7 @@
 		(dnp no)
 		(uuid "83869f60-b1b0-48de-b357-5dbd064a0c75")
 		(property "Reference" "R9"
-			(at 155.448 68.58 0)
+			(at 160.528 68.58 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -2975,7 +3082,7 @@
 			)
 		)
 		(property "Value" "2.2k"
-			(at 153.67 71.882 90)
+			(at 158.75 71.882 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -2986,7 +3093,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
-			(at 151.892 69.85 90)
+			(at 156.972 69.85 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2997,7 +3104,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 153.67 69.85 0)
+			(at 158.75 69.85 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3008,7 +3115,7 @@
 			)
 		)
 		(property "Description" "Resistor"
-			(at 153.67 69.85 0)
+			(at 158.75 69.85 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3425,6 +3532,85 @@
 			(project "rehabsense-main"
 				(path "/b751250a-7d43-475a-8447-686d399cd67b/4c292b8e-bacf-4862-ad93-06ae5fddd327"
 					(reference "R7")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Connector:TestPoint")
+		(at 167.64 81.28 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "fc29d264-9876-4b6f-b849-c199675db0f1")
+		(property "Reference" "TP11"
+			(at 163.576 75.438 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "TestPoint"
+			(at 170.18 79.2479 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Connector_Pin:Pin_D1.0mm_L10.0mm_LooseFit"
+			(at 172.72 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 172.72 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "test point"
+			(at 167.64 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "f42b496b-8975-4440-902b-4df10f5b8e69")
+		)
+		(instances
+			(project "rehabsense-main"
+				(path "/b751250a-7d43-475a-8447-686d399cd67b/4c292b8e-bacf-4862-ad93-06ae5fddd327"
+					(reference "TP11")
 					(unit 1)
 				)
 			)
