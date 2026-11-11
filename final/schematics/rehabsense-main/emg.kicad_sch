@@ -4529,7 +4529,7 @@
 		)
 		(uuid "cc10c5ec-5b3a-44c6-b646-e1f8429b2b35")
 	)
-	(label "ampref"
+	(label "ampref1"
 		(at 113.03 80.01 0)
 		(effects
 			(font
@@ -8622,7 +8622,7 @@
 				)
 			)
 		)
-		(property "Value" "47nF"
+		(property "Value" "47uF"
 			(at 112.268 71.12 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8632,7 +8632,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
+		(property "Footprint" "Capacitor_SMD:C_1206_3216Metric"
 			(at 115.57 73.9648 0)
 			(hide yes)
 			(show_name no)
@@ -9467,7 +9467,7 @@
 				)
 			)
 		)
-		(property "Value" "47nF"
+		(property "Value" "47uF"
 			(at 112.268 167.64 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9477,7 +9477,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
+		(property "Footprint" "Capacitor_SMD:C_1206_3216Metric"
 			(at 115.57 170.4848 0)
 			(hide yes)
 			(show_name no)

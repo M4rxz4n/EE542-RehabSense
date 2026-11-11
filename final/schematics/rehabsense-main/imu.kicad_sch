@@ -1474,7 +1474,7 @@
 		(dnp no)
 		(uuid "6e646e9f-c89f-4deb-906f-11e254558ef4")
 		(property "Reference" "R11"
-			(at 65.786 95.25 0)
+			(at 64.008 95.25 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
