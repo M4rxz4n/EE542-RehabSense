@@ -3694,7 +3694,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "0f087859-0f61-42d5-9366-b3d4cba449a2")
-		(property "Reference" "TP5"
+		(property "Reference" "3VA1"
 			(at 236.982 102.108 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3756,7 +3756,7 @@
 		(instances
 			(project "rehabsense-main"
 				(path "/b751250a-7d43-475a-8447-686d399cd67b/b0bb90cb-8dc9-410c-88d7-96c075ed51f1"
-					(reference "TP5")
+					(reference "3VA1")
 					(unit 1)
 				)
 			)
@@ -3854,7 +3854,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "226e0b62-8db1-4fe9-b721-30c2fac1de56")
-		(property "Reference" "TP2"
+		(property "Reference" "VBAT1"
 			(at 96.774 55.372 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3916,7 +3916,7 @@
 		(instances
 			(project "rehabsense-main"
 				(path "/b751250a-7d43-475a-8447-686d399cd67b/b0bb90cb-8dc9-410c-88d7-96c075ed51f1"
-					(reference "TP2")
+					(reference "VBAT1")
 					(unit 1)
 				)
 			)
@@ -4224,7 +4224,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "3466c6e8-dcc8-4d66-b4f2-407e7629021f")
-		(property "Reference" "TP3"
+		(property "Reference" "DGND1"
 			(at 195.072 52.578 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4286,7 +4286,7 @@
 		(instances
 			(project "rehabsense-main"
 				(path "/b751250a-7d43-475a-8447-686d399cd67b/b0bb90cb-8dc9-410c-88d7-96c075ed51f1"
-					(reference "TP3")
+					(reference "DGND1")
 					(unit 1)
 				)
 			)
@@ -5444,7 +5444,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "820fda49-7bcf-41d7-a058-7f76377e368a")
-		(property "Reference" "TP1"
+		(property "Reference" "3V3D1"
 			(at 37.084 102.362 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5506,7 +5506,7 @@
 		(instances
 			(project "rehabsense-main"
 				(path "/b751250a-7d43-475a-8447-686d399cd67b/b0bb90cb-8dc9-410c-88d7-96c075ed51f1"
-					(reference "TP1")
+					(reference "3V3D1")
 					(unit 1)
 				)
 			)
@@ -6155,7 +6155,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "b20ba9cb-2cf0-436a-bde9-1714d0477d44")
-		(property "Reference" "TP4"
+		(property "Reference" "AGND1"
 			(at 215.392 52.578 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6217,7 +6217,7 @@
 		(instances
 			(project "rehabsense-main"
 				(path "/b751250a-7d43-475a-8447-686d399cd67b/b0bb90cb-8dc9-410c-88d7-96c075ed51f1"
-					(reference "TP4")
+					(reference "AGND1")
 					(unit 1)
 				)
 			)
