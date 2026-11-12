@@ -2120,6 +2120,16 @@
 	)
 	(wire
 		(pts
+			(xy 54.61 68.58) (xy 60.96 68.58)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "218ef062-0b26-4b6f-b9b4-3e7ec72f4507")
+	)
+	(wire
+		(pts
 			(xy 93.98 115.57) (xy 93.98 114.3)
 		)
 		(stroke
@@ -2197,6 +2207,16 @@
 			(type default)
 		)
 		(uuid "4200f55c-6820-4688-9f22-8e0621ce662a")
+	)
+	(wire
+		(pts
+			(xy 54.61 63.5) (xy 54.61 68.58)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "42ce22db-8312-4c34-be05-bf8e402538b5")
 	)
 	(wire
 		(pts
@@ -4639,6 +4659,84 @@
 			(project "rehabsense-second"
 				(path "/add6a4bd-bc27-405f-8e81-ca1c650b0c64"
 					(reference "U1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:+3V3")
+		(at 54.61 63.5 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "c01cbb51-8ef2-44da-b2a7-03ba375713f2")
+		(property "Reference" "#PWR017"
+			(at 54.61 67.31 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+3V3D"
+			(at 51.816 59.436 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" ""
+			(at 54.61 63.5 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 54.61 63.5 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"+3V3\""
+			(at 54.61 63.5 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "b1b3ec96-4218-48e1-95ed-2a772b15dd29")
+		)
+		(instances
+			(project "rehabsense-second"
+				(path "/add6a4bd-bc27-405f-8e81-ca1c650b0c64"
+					(reference "#PWR017")
 					(unit 1)
 				)
 			)
