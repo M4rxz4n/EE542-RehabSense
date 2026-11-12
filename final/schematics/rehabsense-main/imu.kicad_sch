@@ -1259,7 +1259,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "55b9d3ef-a5ef-40ba-9f5f-b03951b291b1")
-		(property "Reference" "#PWR029"
+		(property "Reference" "#PWR030"
 			(at 110.49 72.39 0)
 			(hide yes)
 			(show_name no)
@@ -1320,7 +1320,7 @@
 		(instances
 			(project "rehabsense-main"
 				(path "/b751250a-7d43-475a-8447-686d399cd67b/87cebee4-4100-4548-8c27-9780f68913c3"
-					(reference "#PWR029")
+					(reference "#PWR030")
 					(unit 1)
 				)
 			)
@@ -1338,7 +1338,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "5c0a3866-b338-4946-92d5-a06f4e4bbda6")
-		(property "Reference" "#PWR030"
+		(property "Reference" "#PWR031"
 			(at 128.27 88.9 0)
 			(hide yes)
 			(show_name no)
@@ -1398,7 +1398,7 @@
 		(instances
 			(project "rehabsense-main"
 				(path "/b751250a-7d43-475a-8447-686d399cd67b/87cebee4-4100-4548-8c27-9780f68913c3"
-					(reference "#PWR030")
+					(reference "#PWR031")
 					(unit 1)
 				)
 			)
@@ -1416,7 +1416,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "6961ed0c-c1f4-4e66-908f-15a3ee3fe9c4")
-		(property "Reference" "#PWR028"
+		(property "Reference" "#PWR029"
 			(at 109.22 114.3 0)
 			(hide yes)
 			(show_name no)
@@ -1476,7 +1476,7 @@
 		(instances
 			(project "rehabsense-main"
 				(path "/b751250a-7d43-475a-8447-686d399cd67b/87cebee4-4100-4548-8c27-9780f68913c3"
-					(reference "#PWR028")
+					(reference "#PWR029")
 					(unit 1)
 				)
 			)
@@ -1657,7 +1657,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "c823d72d-70da-493c-b499-96d9f8cede22")
-		(property "Reference" "#PWR027"
+		(property "Reference" "#PWR028"
 			(at 69.85 107.95 0)
 			(hide yes)
 			(show_name no)
@@ -1717,7 +1717,7 @@
 		(instances
 			(project "rehabsense-main"
 				(path "/b751250a-7d43-475a-8447-686d399cd67b/87cebee4-4100-4548-8c27-9780f68913c3"
-					(reference "#PWR027")
+					(reference "#PWR028")
 					(unit 1)
 				)
 			)
@@ -1734,7 +1734,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "db52e743-1368-4b51-8b00-e6091595d141")
-		(property "Reference" "#PWR048"
+		(property "Reference" "#PWR027"
 			(at 69.85 80.01 0)
 			(hide yes)
 			(show_name no)
@@ -1795,7 +1795,7 @@
 		(instances
 			(project "rehabsense-main"
 				(path "/b751250a-7d43-475a-8447-686d399cd67b/87cebee4-4100-4548-8c27-9780f68913c3"
-					(reference "#PWR048")
+					(reference "#PWR027")
 					(unit 1)
 				)
 			)

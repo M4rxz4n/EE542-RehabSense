@@ -2144,7 +2144,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "2f866e56-05cd-4ac7-8352-03b2d55e9899")
-		(property "Reference" "TP10"
+		(property "Reference" "SDA2"
 			(at 150.622 74.168 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2206,7 +2206,7 @@
 		(instances
 			(project "rehabsense-main"
 				(path "/b751250a-7d43-475a-8447-686d399cd67b/4c292b8e-bacf-4862-ad93-06ae5fddd327"
-					(reference "TP10")
+					(reference "SDA2")
 					(unit 1)
 				)
 			)
@@ -2301,7 +2301,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "4dcb3da1-e3b4-4033-ad09-c53d7d526ad8")
-		(property "Reference" "TP7"
+		(property "Reference" "SCL1"
 			(at 88.392 85.09 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2363,7 +2363,7 @@
 		(instances
 			(project "rehabsense-main"
 				(path "/b751250a-7d43-475a-8447-686d399cd67b/4c292b8e-bacf-4862-ad93-06ae5fddd327"
-					(reference "TP7")
+					(reference "SCL1")
 					(unit 1)
 				)
 			)
@@ -3151,7 +3151,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "889e03e7-dfdf-4743-842b-7b56ba05e3fa")
-		(property "Reference" "TP6"
+		(property "Reference" "SDA1"
 			(at 83.312 76.708 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3213,7 +3213,7 @@
 		(instances
 			(project "rehabsense-main"
 				(path "/b751250a-7d43-475a-8447-686d399cd67b/4c292b8e-bacf-4862-ad93-06ae5fddd327"
-					(reference "TP6")
+					(reference "SDA1")
 					(unit 1)
 				)
 			)
@@ -3548,7 +3548,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "fc29d264-9876-4b6f-b849-c199675db0f1")
-		(property "Reference" "TP11"
+		(property "Reference" "SCL2"
 			(at 163.576 75.438 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3610,7 +3610,7 @@
 		(instances
 			(project "rehabsense-main"
 				(path "/b751250a-7d43-475a-8447-686d399cd67b/4c292b8e-bacf-4862-ad93-06ae5fddd327"
-					(reference "TP11")
+					(reference "SCL2")
 					(unit 1)
 				)
 			)

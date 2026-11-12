@@ -774,7 +774,7 @@
         "uuid": "b751250a-7d43-475a-8447-686d399cd67b"
       }
     ],
-    "used_designators": "U1-14,L1-4,#PWR1-95,C1-51,J1-6,R1-48,JP1-12,TP1-24,FB1",
+    "used_designators": "U1-14,AGND1,L1-4,#PWR1-95,C1-51,J1-6,R1-48,JP1-12,TP1-24,FB1,3V3D1,3VA1,DGND1,MOT1+1,MOT1\\-1,SCL1-2,SDA1-2,VBAT1",
     "variants": []
   },
   "sheets": [
