@@ -76,7 +76,40 @@
           "width": 0.0
         }
       ],
-      "drc_exclusions": [],
+      "drc_exclusions": [
+        [
+          "silk_overlap|143720000|109970000|850bca54-c3ef-45b4-a4d4-86fa6a860f11|edcf9482-a6df-4210-a20b-6336a8735d47",
+          ""
+        ],
+        [
+          "silk_overlap|145020000|108670000|a9dd5106-b6b8-4ce9-b972-1efad886c258|edcf9482-a6df-4210-a20b-6336a8735d47",
+          ""
+        ],
+        [
+          "silk_overlap|145020000|111270000|77f64ec8-62ce-4ce9-8783-3031256416ad|edcf9482-a6df-4210-a20b-6336a8735d47",
+          ""
+        ],
+        [
+          "silk_overlap|146320000|109970000|c2f2103e-a904-46a7-8383-5ef51eb3a2d7|edcf9482-a6df-4210-a20b-6336a8735d47",
+          ""
+        ],
+        [
+          "silk_overlap|148080000|110010000|5395789d-2816-43c0-b25f-4aed8f10a887|62e37fc9-2c4f-4749-8c98-d4f00b72444f",
+          ""
+        ],
+        [
+          "silk_overlap|149380000|108710000|6b89925a-a81c-4bad-ac20-4267136c2e0d|62e37fc9-2c4f-4749-8c98-d4f00b72444f",
+          ""
+        ],
+        [
+          "silk_overlap|149380000|111310000|b4089544-8263-4a9b-8cd7-4b6331e6c2ab|62e37fc9-2c4f-4749-8c98-d4f00b72444f",
+          ""
+        ],
+        [
+          "silk_overlap|150680000|110010000|36677043-2d2b-4294-9937-2cd0eb0be484|62e37fc9-2c4f-4749-8c98-d4f00b72444f",
+          ""
+        ]
+      ],
       "meta": {
         "version": 2
       },
@@ -566,7 +599,7 @@
     "last_paths": {
       "idf": "",
       "netlist": "",
-      "plot": "",
+      "plot": "fab_output_rehabsense_second/",
       "specctra_dsn": "",
       "step": "",
       "vrml": ""
@@ -691,7 +724,11 @@
         "uuid": "add6a4bd-bc27-405f-8e81-ca1c650b0c64"
       }
     ],
+<<<<<<< HEAD
     "used_designators": "#PWR1-18,#PWR20,#PWR47,#PWR61,#PWR65,#PWR68-70,#PWR90-92,C1-10,C36-38,C41,FB1,TP1-2,TP19-22,J1,J6,R1-2,U1-2,U4-5",
+=======
+    "used_designators": "#PWR1-18,#PWR20,#PWR47,#PWR61,#PWR65,#PWR68-70,#PWR90-92,C1-10,C36-38,C41,D1,FB1,J1,J6,R1-2,TO_MAIN1,TP1-2,TP19-22,U1-2,U4-5",
+>>>>>>> 3491f26cad55f4112a282ea64cd5e4f7ca904050
     "variants": []
   },
   "sheets": [
