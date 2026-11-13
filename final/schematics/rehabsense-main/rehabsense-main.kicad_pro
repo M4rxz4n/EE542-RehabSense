@@ -76,7 +76,24 @@
           "width": 0.0
         }
       ],
-      "drc_exclusions": [],
+      "drc_exclusions": [
+        [
+          "clearance|122540000|84404000|a23b6154-65ca-42d6-a09c-a7333e4b3a65|b0ce7576-37f1-4215-9386-afe4e96f60bb",
+          ""
+        ],
+        [
+          "clearance|182040000|84404000|7829409c-022a-4fd5-926b-a607f66293ac|3b3b4563-23ac-422b-8a45-61caa54d660b",
+          ""
+        ],
+        [
+          "solder_mask_bridge|122540000|85896000|b0ce7576-37f1-4215-9386-afe4e96f60bb|a23b6154-65ca-42d6-a09c-a7333e4b3a65",
+          ""
+        ],
+        [
+          "solder_mask_bridge|182040000|85896000|3b3b4563-23ac-422b-8a45-61caa54d660b|7829409c-022a-4fd5-926b-a607f66293ac",
+          ""
+        ]
+      ],
       "meta": {
         "version": 2
       },
@@ -548,7 +565,7 @@
     "last_paths": {
       "idf": "",
       "netlist": "",
-      "plot": "",
+      "plot": "fab_output_rehabsense_main/",
       "specctra_dsn": "",
       "vrml": ""
     },
