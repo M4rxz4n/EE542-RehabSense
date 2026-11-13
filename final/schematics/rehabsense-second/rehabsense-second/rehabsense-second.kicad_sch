@@ -1949,6 +1949,12 @@
 		(uuid "0b14930a-4c34-4fc8-86b3-079f4004e68a")
 	)
 	(junction
+		(at 116.84 125.73)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "394d256a-613e-4557-99b7-40c4b1dd8dbc")
+	)
+	(junction
 		(at 213.36 69.85)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -1973,10 +1979,22 @@
 		(uuid "98cc92ff-9d50-41fe-9a19-36112dee01b9")
 	)
 	(junction
+		(at 116.84 133.35)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "a7185bd7-5cf5-4ab0-bde6-dda54a9307bc")
+	)
+	(junction
 		(at 226.06 80.01)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "a8a0c280-f0c3-42b0-bc94-9f7d330a86b2")
+	)
+	(junction
+		(at 113.03 133.35)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "ba25291c-366f-47a7-b01c-b14f68fabc7d")
 	)
 	(junction
 		(at 99.06 58.42)
@@ -1989,6 +2007,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "d68e80b5-8fbf-4625-a52e-d3f6ee77609f")
+	)
+	(junction
+		(at 123.19 125.73)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "e5f5ca20-8a91-4786-9748-7d5d240d660a")
 	)
 	(junction
 		(at 213.36 80.01)
@@ -2110,6 +2134,16 @@
 	)
 	(wire
 		(pts
+			(xy 113.03 58.42) (xy 113.03 59.69)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "197862dc-bed0-4e68-8689-448ff090d40a")
+	)
+	(wire
+		(pts
 			(xy 226.06 67.31) (xy 226.06 69.85)
 		)
 		(stroke
@@ -2167,6 +2201,16 @@
 			(type default)
 		)
 		(uuid "2e14b087-81a3-47c4-8726-213f15697e53")
+	)
+	(wire
+		(pts
+			(xy 116.84 133.35) (xy 123.19 133.35)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "31fae350-d0a3-44af-9629-70879c0874c9")
 	)
 	(wire
 		(pts
@@ -2237,6 +2281,16 @@
 			(type default)
 		)
 		(uuid "4ae9af86-974b-4850-aa24-2ec0eefd886f")
+	)
+	(wire
+		(pts
+			(xy 113.03 133.35) (xy 116.84 133.35)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "4dae2929-97fa-48f6-a740-495ed87aa00c")
 	)
 	(wire
 		(pts
@@ -2430,6 +2484,16 @@
 	)
 	(wire
 		(pts
+			(xy 123.19 125.73) (xy 127 125.73)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "88000e84-0942-4493-a4d8-8ad5e8a3d2fe")
+	)
+	(wire
+		(pts
 			(xy 99.06 133.35) (xy 113.03 133.35)
 		)
 		(stroke
@@ -2460,17 +2524,17 @@
 	)
 	(wire
 		(pts
-			(xy 113.03 58.42) (xy 113.03 59.69)
+			(xy 116.84 125.73) (xy 123.19 125.73)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "9bbf643d-bf27-447e-837f-b753339a1fd5")
+		(uuid "9cb3e629-cb3f-4c9c-bffa-5e62a8f75ca5")
 	)
 	(wire
 		(pts
-			(xy 99.06 125.73) (xy 119.38 125.73)
+			(xy 99.06 125.73) (xy 116.84 125.73)
 		)
 		(stroke
 			(width 0)
@@ -3525,6 +3589,88 @@
 		)
 	)
 	(symbol
+		(lib_id "Device:C")
+		(at 123.19 129.54 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "4ecd2a97-4e4e-434c-8c00-76872594671f")
+		(property "Reference" "C9"
+			(at 127 128.2699 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "0.1uF 6.3V"
+			(at 127 130.8099 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
+			(at 124.1552 133.35 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 123.19 129.54 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Unpolarized capacitor"
+			(at 123.19 129.54 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "2b2ab1fe-8ecf-4fda-9f9b-d2b49f13d2c4")
+		)
+		(pin "2"
+			(uuid "d2b2f85f-7973-43f4-9a9a-dd5fa3faaaf3")
+		)
+		(instances
+			(project "rehabsense-second"
+				(path "/add6a4bd-bc27-405f-8e81-ca1c650b0c64"
+					(reference "C9")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Device:FerriteBead")
 		(at 161.29 127 90)
 		(unit 1)
@@ -3684,7 +3830,7 @@
 	)
 	(symbol
 		(lib_id "power:+3V3")
-		(at 119.38 125.73 0)
+		(at 127 125.73 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -3694,7 +3840,7 @@
 		(dnp no)
 		(uuid "84c8ce9f-9dd6-4190-a81d-be7e2d7ea562")
 		(property "Reference" "#PWR09"
-			(at 119.38 129.54 0)
+			(at 127 129.54 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3705,7 +3851,7 @@
 			)
 		)
 		(property "Value" "+3V3D"
-			(at 116.586 121.666 0)
+			(at 124.206 121.666 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -3716,7 +3862,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 119.38 125.73 0)
+			(at 127 125.73 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3727,7 +3873,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 119.38 125.73 0)
+			(at 127 125.73 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3738,7 +3884,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"+3V3\""
-			(at 119.38 125.73 0)
+			(at 127 125.73 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5367,6 +5513,88 @@
 			(project "rehabsense-second"
 				(path "/add6a4bd-bc27-405f-8e81-ca1c650b0c64"
 					(reference "#PWR06")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 116.84 129.54 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "f5dac7d8-226a-47b8-9d89-849364ca278e")
+		(property "Reference" "C8"
+			(at 120.65 128.2699 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "10uF 6.3V"
+			(at 120.65 130.8099 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
+			(at 117.8052 133.35 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 116.84 129.54 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Unpolarized capacitor"
+			(at 116.84 129.54 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "2"
+			(uuid "86d5516f-18de-4aef-9efc-f4bd7fa6a6ee")
+		)
+		(pin "1"
+			(uuid "024b115e-fd6b-49c0-a381-b9ca67064ca7")
+		)
+		(instances
+			(project "rehabsense-second"
+				(path "/add6a4bd-bc27-405f-8e81-ca1c650b0c64"
+					(reference "C8")
 					(unit 1)
 				)
 			)
